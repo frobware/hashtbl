@@ -60,6 +60,8 @@
 #define MAX_TABLE_SIZE		(1 << 30)
 #endif
 
+#define INLINE inline
+
 #ifndef offsetof
 #define list2type(ptr, type, field) \
 	((type *) ((char *)(ptr) - (size_t)(&((type *)0)->field)))
@@ -92,18 +94,18 @@ struct list_head {
 	struct list_head *prev;
 };
 
-static inline int list_is_empty(struct list_head *list)
+static INLINE int list_is_empty(struct list_head *list)
 {
 	return (list->next == list && list->prev == list);
 }
 
-static inline void list_init(struct list_head *list)
+static INLINE void list_init(struct list_head *list)
 {
 	list->next = list->prev = list;
 }
 
 /* Add node between next and prev. */
-static inline void list_add_between(struct list_head *prev,
+static INLINE void list_add_between(struct list_head *prev,
 				    struct list_head *next, 
 				    struct list_head *node)
 {
@@ -115,13 +117,13 @@ static inline void list_add_between(struct list_head *prev,
 
 /* Add node after head. */
 
-static inline void list_add(struct list_head *head,
+static INLINE void list_add(struct list_head *head,
 			    struct list_head *node)
 {
 	list_add_between(head, head->next, node);
 }
 
-static inline void list_remove(struct list_head *node)
+static INLINE void list_remove(struct list_head *node)
 {
 	struct list_head *prev = node->prev;
 	struct list_head *next = node->next;
@@ -133,7 +135,7 @@ static inline void list_remove(struct list_head *node)
  * hash helper - Spread the lower order bits.
  * Magic numbers from Java 1.4.
  */
-static inline unsigned int hash_helper(unsigned int k)
+static INLINE unsigned int hash_helper(unsigned int k)
 {
 	unsigned int h = (unsigned int)k;
 	h ^= (h >> 20) ^ (h >> 12);
@@ -145,7 +147,7 @@ static inline unsigned int hash_helper(unsigned int k)
  * This algorithm was first reported by Dan Bernstein many years ago
  * in comp.lang.c.
  */
-static inline unsigned long djb2_hash(const unsigned char *str)
+static INLINE unsigned long djb2_hash(const unsigned char *str)
 {
 	unsigned long hash = 5381;
 	assert(str);
@@ -159,7 +161,7 @@ static inline unsigned long djb2_hash(const unsigned char *str)
 
 /* Robert Jenkins' 32 bit integer hash function. */
 
-static inline unsigned int int32hash(unsigned int a)
+static INLINE unsigned int int32hash(unsigned int a)
 {
 	a = (a + 0x7ed55d16) + (a << 12);
 	a = (a ^ 0xc761c23c) ^ (a >> 19);
@@ -215,14 +217,14 @@ static int hashtbl_init(struct hashtbl *h,
 }
 
 /* Return pointer to hash table head for an existing entry. */
-static inline struct hashtbl_entry **entry2head(const struct hashtbl *h,
+static INLINE struct hashtbl_entry **entry2head(const struct hashtbl *h,
 						struct hashtbl_entry *e)
 {
 	return &h->table[e->hash & (h->table_size-1)];
 }
 
 /* Return pointer to hash table head for key. */
-static inline struct hashtbl_entry **key2head(const struct hashtbl *h,
+static INLINE struct hashtbl_entry **key2head(const struct hashtbl *h,
 					      const void *k)
 {
 	/* Sentinel value. */
@@ -235,7 +237,7 @@ static inline struct hashtbl_entry **key2head(const struct hashtbl *h,
 	}
 }
 
-static inline struct hashtbl_entry *hashtbl_entry_new(struct hashtbl *h,
+static INLINE struct hashtbl_entry *hashtbl_entry_new(struct hashtbl *h,
 						      void *k, void *v)
 {
 	struct hashtbl_entry *e;
@@ -249,7 +251,7 @@ static inline struct hashtbl_entry *hashtbl_entry_new(struct hashtbl *h,
 	return e;
 }
 
-static inline struct hashtbl_entry *lookup_internal(const struct hashtbl *h,
+static INLINE struct hashtbl_entry *lookup_internal(const struct hashtbl *h,
 						    const void *k)
 {
 	struct hashtbl_entry *entry = *key2head(h,k);
@@ -263,7 +265,7 @@ static inline struct hashtbl_entry *lookup_internal(const struct hashtbl *h,
 	return entry;
 }
 
-static inline void unlink_entry(struct hashtbl *h,
+static INLINE void unlink_entry(struct hashtbl *h,
 				struct hashtbl_entry **head,
 				struct hashtbl_entry *entry)
 {
@@ -271,7 +273,7 @@ static inline void unlink_entry(struct hashtbl *h,
 	h->count--;
 }
 
-static inline struct hashtbl_entry * remove_key(struct hashtbl *h,
+static INLINE struct hashtbl_entry * remove_key(struct hashtbl *h,
 						const void *k)
 {
 	struct hashtbl_entry **head = key2head(h, k);
@@ -289,7 +291,7 @@ static inline struct hashtbl_entry * remove_key(struct hashtbl *h,
 	return entry;
 }
 
-static inline void link_entry(struct hashtbl *h,
+static INLINE void link_entry(struct hashtbl *h,
 			      struct hashtbl_entry *entry)
 {
 	struct hashtbl_entry **head = entry2head(h, entry);
