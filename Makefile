@@ -25,7 +25,7 @@
 PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
 COMMON_CFLAGS += -Wall -Wextra -Wformat -Wmissing-prototypes -Wpointer-arith
 COMMON_CFLAGS += -Wuninitialized -O -Wsign-compare -Wshadow -Winline
-COMMON_CFLAGS += -ansi -pedantic
+COMMON_CFLAGS += -pedantic
 CFLAGS        += -g -O3
 CFLAGS        += $(COMMON_CFLAGS)
 VALGRIND       = valgrind --quiet --leak-check=full
