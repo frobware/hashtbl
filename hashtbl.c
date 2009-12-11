@@ -60,15 +60,14 @@
 #define MAX_TABLE_SIZE		(1 << 30)
 #endif
 
-#define INLINE inline
-
-#ifndef offsetof
-#define list2type(ptr, type, field) \
-	((type *) ((char *)(ptr) - (size_t)(&((type *)0)->field)))
+#if defined(_MSC_VER)
+  #define INLINE __inline
 #else
+  #define INLINE inline
+#endif
+
 #define list2type(ptr, type, field) \
 	((type *) ((char *)(ptr) - offsetof(type, field)))
-#endif
 
 struct hashtbl_entry {
 	void		     *key;
@@ -117,18 +116,16 @@ static INLINE void list_add_between(struct list_head *prev,
 
 /* Add node after head. */
 
-static INLINE void list_add(struct list_head *head,
-			    struct list_head *node)
+static INLINE void list_add_after(struct list_head *head,
+				  struct list_head *node)
 {
 	list_add_between(head, head->next, node);
 }
 
 static INLINE void list_remove(struct list_head *node)
 {
-	struct list_head *prev = node->prev;
-	struct list_head *next = node->next;
-	prev->next = next;
-	next->prev = prev;
+	node->prev->next = node->next;
+	node->next->prev = node->prev;
 }
 
 /*
@@ -327,7 +324,7 @@ void * hashtbl_lookup(const struct hashtbl *h, const void *k)
 	return (entry != NULL) ? entry->val : NULL;
 }
 
-void *hashtbl_replace(const struct hashtbl *h, void *k, void *v)
+void * hashtbl_replace(const struct hashtbl *h, void *k, void *v)
 {
 	void *old_val = NULL;
 	struct hashtbl_entry *entry = lookup_internal(h, k);
@@ -338,8 +335,8 @@ void *hashtbl_replace(const struct hashtbl *h, void *k, void *v)
 	return old_val;
 }
 
-void *hashtbl_remove(struct hashtbl *h, const void *k,
-		     HASHTBL_KEY_FREE_FUNC kfreefunc)
+void * hashtbl_remove(struct hashtbl *h, const void *k,
+		      HASHTBL_KEY_FREE_FUNC kfreefunc)
 {
 	void *v = NULL;
 	struct hashtbl_entry *entry = remove_key(h, k);
