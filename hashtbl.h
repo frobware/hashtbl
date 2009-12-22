@@ -169,18 +169,6 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v);
 void * hashtbl_lookup(struct hashtbl *h, const void *k);
 
 /*
- * Replace value for an existing key.
- *
- * @param h - hashtable instance
- * @param k - the search key
- * @param v - new value for key
- *
- * Returns the old value associated with key, or NULL if key not
- * found.
- */
-void * hashtbl_replace(struct hashtbl *h, void *k, void *v);
-
-/*
  * Returns the number of entries in the table.
  */
 unsigned int hashtbl_count(const struct hashtbl *h);

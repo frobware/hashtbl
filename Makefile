@@ -30,7 +30,7 @@ COMMON_CFLAGS += -Wsign-compare -Wshadow
 COMMON_CFLAGS += -pedantic
 CFLAGS        += $(COMMON_CFLAGS)
 #CFLAGS        += -g -fno-inline
-CFLAGS        += -O3 -DNDEBUG
+CFLAGS        += -O3
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test
@@ -42,12 +42,12 @@ else
 endif
 
 hashtbl_test: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) -fwhole-program -combine -o $@ hashtbl.c hashtbl_test.c
+	$(CC) $(CFLAGS) -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: hashtbl_test.gcov
 
 hashtbl_test.gcov: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -g -O3 -o $@ hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -g -o $@ hashtbl_test.c hashtbl.c
 	./$@
 	gcov $^
 

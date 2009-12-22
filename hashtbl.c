@@ -39,10 +39,12 @@
  * is normally the order in which keys are inserted into the table.
  */
 
+#include <stddef.h>
 #include <stdlib.h>		/* size_t, offsetof, NULL */
 #include <string.h>		/* strcmp */
-#include <stddef.h>
+#include <inttypes.h>		/* intptr_t */
 #include <assert.h>
+#include <stdio.h>
 #include "hashtbl.h"
 
 #ifndef HASHTBL_MALLOC
@@ -54,11 +56,11 @@
 #endif
 
 #ifndef MAX_LOAD_FACTOR
-#define MAX_LOAD_FACTOR		0.75
+#define MAX_LOAD_FACTOR		0.85
 #endif
 
-#ifndef HASHTBL_MAX_SIZE
-#define HASHTBL_MAX_SIZE		(1 << 30)
+#ifndef HASHTBL_MAX_TABLE_SIZE
+#define HASHTBL_MAX_TABLE_SIZE	(1 << 24)
 #endif
 
 #if defined(_MSC_VER)
@@ -99,7 +101,7 @@ struct hashtbl {
 	struct hashtbl_entry	**table;
 };
 
-static INLINE int list_is_empty(const struct dllist *list)
+static INLINE int dllist_is_empty(const struct dllist *list)
 {
 	return list->next == list;
 }
@@ -146,7 +148,18 @@ static int is_power_of_2(unsigned int x)
 }
 #endif
 
-#if 0
+#if 1
+
+/*
+ * This function computes the next highest power of 2 for a 32-bit
+ * integer (X), greater than or equal to X.
+ * 
+ * This works by copying the highest set bit to all of the lower bits,
+ * and then adding one, which results in carries that set all of the
+ * lower bits to 0 and one bit beyond the highest set bit to 1. If the
+ * original number was a power of 2, then the decrement will reduce it
+ * to one less, so that we round up to the same original value.
+ */	
 static unsigned int roundup_to_next_power_of_2(unsigned int x)
 {
 	x--;
@@ -212,20 +225,17 @@ static int hashtbl_init(struct hashtbl *h,
 			HASHTBL_VAL_FREE_FUNC vfreefunc)
 
 {
-	int i, capacity = 1;
+	int capacity = 1;
 
-	if (initial_capacity < 2) {
-		initial_capacity = 2;
-	} else if (initial_capacity > HASHTBL_MAX_SIZE) {
-		initial_capacity = HASHTBL_MAX_SIZE;
+	if (initial_capacity < 1) {
+		initial_capacity = 1;
+	} else if (initial_capacity > HASHTBL_MAX_TABLE_SIZE) {
+		initial_capacity = HASHTBL_MAX_TABLE_SIZE;
 	}
 
-	/* Find a power of 2 >= initial_capacity */
-	while (capacity < initial_capacity) {
-		capacity <<= 1;
-	}
-
+	capacity = roundup_to_next_power_of_2(initial_capacity);
 	assert(is_power_of_2(capacity));
+	assert(capacity > 0 && capacity <= HASHTBL_MAX_TABLE_SIZE);
 
 	h->hashfun	    = hashfun ? hashfun : hashtbl_direct_hash;
 	h->equalsfun	    = equalsfun ? equalsfun : hashtbl_direct_equals;
@@ -239,15 +249,11 @@ static int hashtbl_init(struct hashtbl *h,
 	h->table	    = HASHTBL_MALLOC(capacity * sizeof(*(h->table)));
 
 	if (h->table == NULL) {
-		HASHTBL_FREE(h);
 		return 1;
 	}
 
+	memset(h->table, 0, capacity * sizeof(*h->table));
 	dllist_init(&h->all_entries);
-
-	for (i = 0; i < h->table_size; i++) {
-		h->table[i] = NULL;
-	}
 
 	return 0;
 }
@@ -369,18 +375,6 @@ void * hashtbl_lookup(struct hashtbl *h, const void *k)
 	return NULL;
 }
 
-void * hashtbl_replace(struct hashtbl *h, void *k, void *v)
-{
-	void *old_val = NULL;
-	struct hashtbl_entry *entry = find_entry(h, k);
-	if (entry != NULL) {
-		old_val = entry->val;
-		entry->val = v;
-		record_access(h, entry);
-	}
-	return old_val;
-}
-
 void * hashtbl_remove(struct hashtbl *h, const void *k)
 {
 	void *v = NULL;
@@ -406,6 +400,7 @@ void hashtbl_clear(struct hashtbl *h)
 			h->kfreefunc(entry->key);
 		if (h->vfreefunc != NULL && entry->val != NULL)
 			h->vfreefunc(entry->val);
+		h->table[entry->hash & (h->table_size -1)] = NULL;
 		dllist_remove(&entry->list);
 		HASHTBL_FREE(entry);
 		--h->count;
@@ -413,7 +408,7 @@ void hashtbl_clear(struct hashtbl *h)
 
 	dllist_init(&h->all_entries);
 	assert(h->count == 0);
-	assert(list_is_empty(&h->all_entries));
+	assert(dllist_is_empty(&h->all_entries));
 }
 
 void hashtbl_delete(struct hashtbl *h)
@@ -461,32 +456,29 @@ int hashtbl_resize(struct hashtbl *h, int new_capacity)
 {
 	struct dllist *node, *head = &h->all_entries;
 	struct hashtbl_entry *entry, **new_table;
-	int i, capacity = 1;
+	int capacity = 1;
 
 	assert(h->resize_policy == HASHTBL_AUTO_RESIZE);
 
 	if (new_capacity < h->table_size)
 		return 0;	/* we don't support a compact mode */
 
-	if (new_capacity > HASHTBL_MAX_SIZE) {
-		new_capacity = HASHTBL_MAX_SIZE;
+	if (new_capacity > HASHTBL_MAX_TABLE_SIZE) {
+		new_capacity = HASHTBL_MAX_TABLE_SIZE;
 	}
 
-	/* Find a power of 2 >= new_capacity */
+	/* Don't grow beyond our maximum. */
+	if (h->table_size == HASHTBL_MAX_TABLE_SIZE)
+		return 0;
 
-	while (capacity < new_capacity) {
-		capacity <<= 1;
-	}
-
+	capacity = roundup_to_next_power_of_2(new_capacity);
 	assert(is_power_of_2(capacity));
 	new_table = HASHTBL_MALLOC(capacity * sizeof(*new_table));
 
 	if (new_table == NULL)
 		return 1;
 
-	for (i = 0; i < capacity; i++) {
-		new_table[i] = NULL;
-	}
+	memset(new_table, 0, capacity * sizeof(*h->table));
 
 	/* Move all entries from old hash table to new_table. */
 
@@ -497,7 +489,7 @@ int hashtbl_resize(struct hashtbl *h, int new_capacity)
 		entry->next = *slot_ref;
 		*slot_ref = entry;
 	}
-	
+
 	HASHTBL_FREE(h->table);
 	h->table_size = capacity;
 	h->table = new_table;
@@ -563,7 +555,7 @@ const struct hashtbl_entry * hashtbl_first(struct hashtbl *h,
 					   struct hashtbl_iter *iter)
 {
 	struct dllist *node = h->all_entries.next;
-	if (list_is_empty(node)) return NULL;
+	if (dllist_is_empty(node)) return NULL;
 	iter->entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
 	iter->key = iter->entry->key;
 	iter->val = iter->entry->val;
