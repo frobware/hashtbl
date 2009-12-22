@@ -23,11 +23,14 @@
 # THE SOFTWARE.
 
 PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
-COMMON_CFLAGS += -Wall -Wextra -Wformat -Wmissing-prototypes -Wpointer-arith
-COMMON_CFLAGS += -Wuninitialized -O -Wsign-compare -Wshadow -Winline
+COMMON_CFLAGS += -Wall -Wextra
+COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith
+COMMON_CFLAGS += -Wuninitialized -O
+COMMON_CFLAGS += -Wsign-compare -Wshadow
 COMMON_CFLAGS += -pedantic
-CFLAGS        += -g -O3
 CFLAGS        += $(COMMON_CFLAGS)
+#CFLAGS        += -g -fno-inline
+CFLAGS        += -O3 -DNDEBUG
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test
@@ -38,21 +41,29 @@ else
 	./hashtbl_test
 endif
 
-hashtbl_test: hashtbl_test.o hashtbl.o
-	$(CC) -g -o $@ hashtbl_test.o hashtbl.o
+hashtbl_test: hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) -fwhole-program -combine -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: hashtbl_test.gcov
 
 hashtbl_test.gcov: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -g -o $@ hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -g -O3 -o $@ hashtbl_test.c hashtbl.c
 	./$@
 	gcov $^
 
-hashtbl_test.pg: hashtbl_test.c hashtbl.c lookup3.c
-	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -pg -g -o $@ hashtbl_test.c hashtbl.c lookup3.c
+.PHONY : hashtbl_test.pg
+
+hashtbl_test.pg: hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
+		-fwhole-program -combine -pg \
+		-O3 -g \
+		 -o $@ hashtbl_test.c hashtbl.c
 
 clean:
 	$(RM) -r *.o *.a *.d hashtbl_test.pg hashtbl_test.gcov hashtbl_test *.gcda *.gcov *.pg *.gcno
+
+*.o : Makefile
+hashtbl_test : Makefile
 
 hashtbl.c : hashtbl.h
 hashtbl_test.c : hashtbl.c

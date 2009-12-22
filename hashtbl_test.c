@@ -36,7 +36,6 @@
 
 #define UNUSED_PARAMETER(x) (void)(x)
 
-#define AUTO_RESIZE 1
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 static int ht_size = 1;
@@ -55,12 +54,12 @@ struct key {
 	int k;
 };
 
-static unsigned int struct_key_hash(const void *k)
+static unsigned int key_hash(const void *k)
 {
 	return ((struct key *)k)->k;
 }
 
-static int struct_key_equals(const void *a, const void *b)
+static int key_equals(const void *a, const void *b)
 {
 	return ((struct key *)a)->k == ((struct key *)b)->k;
 }
@@ -94,8 +93,10 @@ static int test12_apply_fn1(const void *k, const void *v, const void *u)
 static int test1(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -111,8 +112,10 @@ static int test2(void)
 {
 	struct key k;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k, 0, sizeof(k));
@@ -132,8 +135,10 @@ static int test3(void)
 	struct key k;
 	struct value v;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k, 0, sizeof(k));
@@ -141,6 +146,8 @@ static int test3(void)
 	k.k = 3;
 	v.v = 300;
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
+	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &k, &v));
+	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &k, &v));
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &k, &v));
 	CUT_ASSERT_EQUAL(1, hashtbl_count(h));
 	CUT_ASSERT_EQUAL(&v, hashtbl_lookup(h, &k));
@@ -158,14 +165,16 @@ static int test4(void)
 	struct key k1, k2;
 	struct value v1, v2;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k1, 0, sizeof(k1));
 	memset(&k2, 0, sizeof(k2));
-	memset(&k1, 0, sizeof(k1));
-	memset(&k2, 0, sizeof(k2));
+	memset(&v1, 0, sizeof(v1));
+	memset(&v2, 0, sizeof(v2));
 	k1.k = 3;
 	v1.v = 300;
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -200,8 +209,10 @@ static int test5(void)
 	struct key k1, k2;
 	struct value v1, v2;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 
@@ -245,8 +256,10 @@ static int test6(void)
 	struct value v1, v2;
 	struct hashtbl *h = NULL;
 
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -273,10 +286,10 @@ static int test6(void)
 	CUT_ASSERT_EQUAL(&v2, hashtbl_lookup(h, &k2));
 	CUT_ASSERT_EQUAL(400, ((struct value *)hashtbl_lookup(h, &k2))->v);
 
-	CUT_ASSERT_EQUAL(2, hashtbl_map(h, test6_apply_fn1, &accumulator));
+	CUT_ASSERT_EQUAL(2, hashtbl_apply(h, test6_apply_fn1, &accumulator));
 	CUT_ASSERT_EQUAL(700, accumulator);
 
-	CUT_ASSERT_EQUAL(1, hashtbl_map(h, test6_apply_fn2, &accumulator));
+	CUT_ASSERT_EQUAL(1, hashtbl_apply(h, test6_apply_fn2, &accumulator));
 	CUT_ASSERT_EQUAL(1400, accumulator);
 
 	hashtbl_clear(h);
@@ -294,8 +307,10 @@ static int test7(void)
 	struct value v;
 	struct hashtbl *h = NULL;
 
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -310,9 +325,9 @@ static int test7(void)
 	CUT_ASSERT_EQUAL(1, hashtbl_count(h));
 	CUT_ASSERT_EQUAL(&v, hashtbl_lookup(h, &k));
 	CUT_ASSERT_EQUAL(300, ((struct value *)hashtbl_lookup(h, &k))->v);
-	CUT_ASSERT_EQUAL(&v, hashtbl_remove(h, &k, NULL));
+	CUT_ASSERT_EQUAL(&v, hashtbl_remove(h, &k));
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
-	CUT_ASSERT_NULL(hashtbl_remove(h, &k, NULL));
+	CUT_ASSERT_NULL(hashtbl_remove(h, &k));
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	hashtbl_clear(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -329,8 +344,10 @@ static int test8(void)
 	struct key *k = malloc(sizeof(struct key));
 	struct value *v = malloc(sizeof(struct value));
 
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			free, free);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_NOT_NULL(k);
@@ -346,9 +363,9 @@ static int test8(void)
 	CUT_ASSERT_EQUAL(1, hashtbl_count(h));
 	CUT_ASSERT_EQUAL(v, hashtbl_lookup(h, k));
 	CUT_ASSERT_EQUAL(300, ((struct value *)hashtbl_lookup(h, k))->v);
-	CUT_ASSERT_EQUAL(v, hashtbl_remove(h, k, NULL));
+	CUT_ASSERT_EQUAL(v, hashtbl_remove(h, k));
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
-	CUT_ASSERT_NULL(hashtbl_remove(h, k, NULL));
+	CUT_ASSERT_NULL(hashtbl_remove(h, k));
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	free(k);
 	free(v);
@@ -363,8 +380,10 @@ static int test8(void)
 static int test9(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, !hashtbl_insert(h, NULL, NULL));
@@ -377,8 +396,10 @@ static int test9(void)
 static int test10(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_NULL(hashtbl_lookup(h, NULL));
@@ -391,11 +412,13 @@ static int test10(void)
 static int test11(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			free, free);
 	CUT_ASSERT_NOT_NULL(h);
-	CUT_ASSERT_NULL(hashtbl_remove(h, NULL, free));
+	CUT_ASSERT_NULL(hashtbl_remove(h, NULL));
 	hashtbl_delete(h);
 	return 0;
 }
@@ -405,8 +428,10 @@ static int test12(void)
 	int test12_max = 100;
 	struct hashtbl *h = NULL;
 	int i;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
-			struct_key_hash, struct_key_equals,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			key_hash, key_equals,
 			free, free);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -426,7 +451,7 @@ static int test12(void)
 				 ((struct value *)hashtbl_lookup(h, k))->v);
 	}
 
-	hashtbl_map(h, test12_apply_fn1, &test12_max);
+	hashtbl_apply(h, test12_apply_fn1, &test12_max);
 
 	for (i = 0; i < test12_max; i++) {
 		struct key k;
@@ -462,7 +487,9 @@ static int test13(void)
 	int keys[] = { 100, 200, 300 };
 	int values[] = { 1000, 2000, 3000 };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -476,7 +503,7 @@ static int test13(void)
 	CUT_ASSERT_EQUAL((int)ARRAY_SIZE(keys), hashtbl_count(h));
 	for (i = 0; i < (int)ARRAY_SIZE(keys); i++) {
 		CUT_ASSERT_EQUAL(values[i],
-				 *(int *)hashtbl_remove(h, &keys[i], NULL));
+				 *(int *)hashtbl_remove(h, &keys[i]));
 	}
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	hashtbl_clear(h);
@@ -492,7 +519,9 @@ static int test14(void)
 	int keys[] = { 100, 200, 300 };
 	int values[] = { 1000, 2000, 3000 };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
 			hashtbl_int_hash, hashtbl_int_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -507,7 +536,7 @@ static int test14(void)
 	for (i = 0; i < ARRAY_SIZE(keys); i++) {
 		int x = keys[i];
 		CUT_ASSERT_EQUAL(values[i],
-				 *(int *)hashtbl_remove(h, &x, NULL));
+				 *(int *)hashtbl_remove(h, &x));
 	}
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	hashtbl_clear(h);
@@ -520,20 +549,22 @@ static int test14(void)
 static int test15(void)
 {
 	unsigned int i;
-	const char *keys[] = { "100", "200", "300" };
-	const char *values[] = { "1000", "2000", "3000" };
+	char *keys[] = { "100", "200", "300" };
+	char *values[] = { "1000", "2000", "3000" };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	for (i = 0; i < ARRAY_SIZE(keys); i++) {
 		int ss;		/* same string */
-		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[i], &values[i]));
-		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[i]));
-		ss = strcmp(values[i],
-			    (char *)hashtbl_lookup(h, &keys[i])) == 0;
+		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, keys[i], values[i]));
+		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, keys[i]));
+		ss = strcmp(keys[i],
+			    (char *)hashtbl_lookup(h, keys[i])) == 0;
 		CUT_ASSERT_EQUAL(0, ss);
 	}
 	hashtbl_clear(h);
@@ -547,20 +578,22 @@ static int test16(void)
 {
 	unsigned int i;
 	char *replace_str = "hello world";
-	const char *keys[] = { "100", "200", "300" };
-	const char *vals[] = { "1000", "2000", "3000" };
+	char *keys[] = { "100", "200", "300" };
+	char *vals[] = { "1000", "2000", "3000" };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size, AUTO_RESIZE,
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	for (i = 0; i < ARRAY_SIZE(keys); i++) {
-		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[i], &vals[0]));
-		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[i]));
-		CUT_ASSERT_EQUAL(&vals[0], hashtbl_lookup(h, &keys[i]));
-		CUT_ASSERT_EQUAL(&vals[0], hashtbl_replace(h, &keys[i], replace_str));
-		CUT_ASSERT_EQUAL(replace_str, hashtbl_lookup(h, &keys[i]));
+		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, keys[i], vals[0]));
+		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, keys[i]));
+		CUT_ASSERT_EQUAL(vals[0], hashtbl_lookup(h, keys[i]));
+		CUT_ASSERT_EQUAL(vals[0], hashtbl_replace(h, keys[i], replace_str));
+		CUT_ASSERT_EQUAL(replace_str, hashtbl_lookup(h, keys[i]));
 	}
 	hashtbl_clear(h);
 	hashtbl_delete(h);
@@ -568,7 +601,81 @@ static int test16(void)
   
 }
 
-CUT_BEGIN_TEST_HARNESS CUT_RUN_TEST(test1);
+/* Test hashtbl_iter */
+
+static int test17(void)
+{
+	unsigned int i;
+	char *keys[] = { "100", "200", "300" };
+	char *vals[] = { "1000", "2000", "3000" };
+	struct hashtbl *h = NULL;
+	struct hashtbl_iter iter;
+	const struct hashtbl_entry *entry;
+       
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			hashtbl_string_hash, hashtbl_string_equals,
+			NULL, NULL);
+	CUT_ASSERT_NOT_NULL(h);
+	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
+	for (i = 0; i < ARRAY_SIZE(keys); i++) {
+		int ss;		/* same string */
+		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, keys[i], vals[i]));
+		CUT_ASSERT_EQUAL(vals[i], hashtbl_lookup(h, keys[i]));
+		ss = strcmp(vals[i],
+			    (char *)hashtbl_lookup(h, keys[i])) == 0;
+	}
+
+	/* Iteration order should reflect insertion order. */
+
+	for (i = 3, entry = hashtbl_first(h, &iter);
+	     entry != NULL;
+	     entry = hashtbl_next(h, &iter), --i) {
+		CUT_ASSERT_EQUAL(keys[i-1], iter.key);
+		CUT_ASSERT_EQUAL(vals[i-1], iter.val);
+	}
+
+	hashtbl_clear(h);
+	hashtbl_delete(h);
+	return 0;
+  
+}
+
+/* Test lots of insertions and removals. */
+
+/* Pull this out of test18() to avoid stack issues. */
+static int test18_bigtable[1<<20];
+
+static int test18(void)
+{
+	unsigned int i;
+	struct hashtbl *h;
+	
+	h = hashtbl_new(ht_size,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_INSERTION_ORDER,
+			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL);
+	CUT_ASSERT_NOT_NULL(h);
+	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
+	for (i = 0; i < (1 << 20); i++) {
+		int *k = &test18_bigtable[i];
+		test18_bigtable[i] = i;
+		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, k, k));
+		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, k));
+	}
+	for (i = 0; i < (1 << 20); i++) {
+		int *k = &test18_bigtable[i];
+		CUT_ASSERT_NOT_NULL(hashtbl_remove(h, k));
+	}
+	hashtbl_delete(h);
+	return 0;
+  
+}
+
+CUT_BEGIN_TEST_HARNESS
+CUT_RUN_TEST(test1);
 CUT_RUN_TEST(test2);
 CUT_RUN_TEST(test3);
 CUT_RUN_TEST(test4);
@@ -584,4 +691,6 @@ CUT_RUN_TEST(test13);
 CUT_RUN_TEST(test14);
 CUT_RUN_TEST(test15);
 CUT_RUN_TEST(test16);
+CUT_RUN_TEST(test17);
+CUT_RUN_TEST(test18);
 CUT_END_TEST_HARNESS

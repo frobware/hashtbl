@@ -41,26 +41,46 @@
  * 2. To insert an entry use hashtbl_insert().
  * 3. To lookup a key use hashtbl_lookup().
  * 4. To remove a key use hashtbl_remove().
- * 5. To iterate over all keys use hashtbl_map().
+ * 5. To apply a function over all entries use hashtbl_apply().
  * 5. To clear all keys use hashtbl_clear().
  * 6. To delete a hash table instance use hashtbl_delete().
+ * 7. To iterate over all entries use hashtbl_first(), hashtbl_next().
  */
 
-/* Opaque structure. */
+/* Opaque types. */
+
 struct hashtbl;
+struct hashtbl_entry;
 
 /* Hash function. */
-typedef unsigned int (*HASHTBL_HASH_FUNC) (const void *k);
+typedef unsigned int (*HASHTBL_HASH_FUNC)(const void *k);
 
 /* Equals function. */
-typedef int (*HASHTBL_EQUALS_FUNC) (const void *a, const void *b);
+typedef int (*HASHTBL_EQUALS_FUNC)(const void *a, const void *b);
 
-/* Map/Apply function. */
-typedef int (*HASHTBL_APPLY_FUNC) (const void *k, const void *v, const void *u);
+/* Apply function. */
+typedef int (*HASHTBL_APPLY_FUNC)(const void *k, const void *v, const void *u);
 
 /* Functions for deleting keys and values. */
-typedef void (*HASHTBL_KEY_FREE_FUNC) (void *k);
-typedef void (*HASHTBL_VAL_FREE_FUNC) (void *v);
+typedef void (*HASHTBL_KEY_FREE_FUNC)(void *k);
+typedef void (*HASHTBL_VAL_FREE_FUNC)(void *v);
+
+typedef enum {
+	HASHTBL_INSERTION_ORDER = 0,
+	HASHTBL_ACCESS_ORDER	= 1
+} hashtbl_iteration_order;
+
+typedef enum {
+	HASHTBL_AUTO_RESIZE = 0,
+	HASHTBL_NO_RESIZE   = 1
+} hashtbl_resize_policy;
+
+struct hashtbl_iter {
+	void *key, *val;
+	const struct hashtbl_entry *entry; /* private: clients
+					    * shouldn't modify
+					    * this! */
+};
 
 /*
  * [Default] Hash function.
@@ -86,7 +106,8 @@ unsigned int hashtbl_string_hash(const void *k);
  * Creates a new hash table.
  *
  * @param initial_capacity - initial size of the table
- * @param auto_resize	   - boolean: whether table should auto resize
+ * @param resize_policy	   - HASHTBL_{AUTO_RESIZE, NO_RESIZE}
+ * @param iteration_order  - CHAOTIC, ACCESS or INSERTION order
  * @param hash_fun	   - function that creates a hash value from a key
  * @param equals_fun	   - function that checks keys for equality
  * @param kfreefunc	   - function to delete "key"
@@ -95,7 +116,8 @@ unsigned int hashtbl_string_hash(const void *k);
  * Returns non-null if the table was created succesfully.
  */
 struct hashtbl *hashtbl_new(int initial_capacity,
-			    int auto_resize,
+			    hashtbl_resize_policy resize_policy,
+			    hashtbl_iteration_order iteration_order,
 			    HASHTBL_HASH_FUNC hash_fun,
 			    HASHTBL_EQUALS_FUNC equals_fun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
@@ -106,21 +128,19 @@ struct hashtbl *hashtbl_new(int initial_capacity,
  *
  * All the keys are removed via hashtbl_clear().
  *
- * @param h	    - hash table
+ * @param h - hash table
  */
 void hashtbl_delete(struct hashtbl *h);
 
 /*
  * Removes a key from the table, returning the associated value.
  *
- * @param h	    - hash table instance
- * @param k	    - key to remove
- * @param kfreefunc - key free function (maybe NULL)
+ * @param h - hash table instance
+ * @param k - key to remove
  *
  * Returns the value if the key was found, otherwise NULL.
  */
-void *hashtbl_remove(struct hashtbl *h, const void *k,
-		     HASHTBL_KEY_FREE_FUNC kfreefunc);
+void * hashtbl_remove(struct hashtbl *h, const void *k);
 
 /*
  * Clears all entries and reclaims memory used by each entry.
@@ -144,9 +164,9 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v);
  * @param h - hashtable instance
  * @param k - the search key
  *
- * Returns the value associated with key, or NULL if not found.
+ * Returns the value associated with key, or NULL if key is not present.
  */
-void *hashtbl_lookup(const struct hashtbl *h, const void *k);
+void * hashtbl_lookup(struct hashtbl *h, const void *k);
 
 /*
  * Replace value for an existing key.
@@ -158,7 +178,7 @@ void *hashtbl_lookup(const struct hashtbl *h, const void *k);
  * Returns the old value associated with key, or NULL if key not
  * found.
  */
-void *hashtbl_replace(const struct hashtbl *h, void *k, void *v);
+void * hashtbl_replace(struct hashtbl *h, void *k, void *v);
 
 /*
  * Returns the number of entries in the table.
@@ -171,26 +191,26 @@ unsigned int hashtbl_count(const struct hashtbl *h);
 int hashtbl_capacity(const struct hashtbl *h);
 
 /*
- * Apply a function to all keys in the table.
+ * Apply a function to all entries in the table.
  *
  * The apply function should return 0 to terminate the enumeration
  * early.
  *
- * Returns the number of keys the function was applied to.
+ * Returns the number of entries the function was applied to.
  */
-unsigned int hashtbl_map(const struct hashtbl *h,
-			 HASHTBL_APPLY_FUNC f, void *user_arg);
+unsigned int hashtbl_apply(const struct hashtbl *h,
+			   HASHTBL_APPLY_FUNC f, void *user_arg);
 
 /*
  * Returns the load factor of the hash table as a percentage.
  *
  * @param h - hash table instance
  *
- * The load factor is the ratio of:
+ * The load factor is a ratio and is calculated as:
  *
  *   hashtbl_count() / hashtbl_capacity()
  *
- * expressed as a percentage.
+ * and expressed as a percentage.
  */
 int hashtbl_load_factor(const struct hashtbl *h);
 
@@ -199,6 +219,19 @@ int hashtbl_load_factor(const struct hashtbl *h);
  *
  * Returns 0 on succees, or 1 if no memory could be allocated.
  */
-int hashtbl_resize(struct hashtbl *h, unsigned int new_capacity);
+int hashtbl_resize(struct hashtbl *h, int new_capacity);
+
+/*
+ * Return first entry and initialises ITER.  Returns NULL if hash
+ * table is empty.
+ */
+const struct hashtbl_entry *hashtbl_first(struct hashtbl *h,
+					  struct hashtbl_iter *iter);
+
+/*
+ * Return next entry or NULL if there are no more entries.
+ */
+const struct hashtbl_entry *hashtbl_next(struct hashtbl *h,
+					 struct hashtbl_iter *iter);
 
 #endif /* HASHTBL_H */
