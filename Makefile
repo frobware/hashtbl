@@ -30,7 +30,7 @@ COMMON_CFLAGS += -Wsign-compare -Wshadow
 COMMON_CFLAGS += -pedantic
 CFLAGS        += $(COMMON_CFLAGS)
 #CFLAGS        += -g -fno-inline
-CFLAGS        += -O3
+CFLAGS        += -O3 -DNDEBUG
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test

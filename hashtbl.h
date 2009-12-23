@@ -52,6 +52,10 @@
 struct hashtbl;
 struct hashtbl_entry;
 
+#ifndef HASHTBL_MAX_TABLE_SIZE
+#define HASHTBL_MAX_TABLE_SIZE	(1 << 24)
+#endif
+
 /* Hash function. */
 typedef unsigned int (*HASHTBL_HASH_FUNC)(const void *k);
 
@@ -66,13 +70,13 @@ typedef void (*HASHTBL_KEY_FREE_FUNC)(void *k);
 typedef void (*HASHTBL_VAL_FREE_FUNC)(void *v);
 
 typedef enum {
-	HASHTBL_INSERTION_ORDER = 0,
-	HASHTBL_ACCESS_ORDER	= 1
-} hashtbl_iteration_order;
+	HASHTBL_LRU_ORDER = 1,
+	HASHTBL_MRU_ORDER = 2
+} hashtbl_access_order;
 
 typedef enum {
-	HASHTBL_AUTO_RESIZE = 0,
-	HASHTBL_NO_RESIZE   = 1
+	HASHTBL_AUTO_RESIZE = 1,
+	HASHTBL_NO_RESIZE   = 2
 } hashtbl_resize_policy;
 
 struct hashtbl_iter {
@@ -107,7 +111,7 @@ unsigned int hashtbl_string_hash(const void *k);
  *
  * @param initial_capacity - initial size of the table
  * @param resize_policy	   - HASHTBL_{AUTO_RESIZE, NO_RESIZE}
- * @param iteration_order  - CHAOTIC, ACCESS or INSERTION order
+ * @param access_order     - MRU or LRU
  * @param hash_fun	   - function that creates a hash value from a key
  * @param equals_fun	   - function that checks keys for equality
  * @param kfreefunc	   - function to delete "key"
@@ -117,7 +121,7 @@ unsigned int hashtbl_string_hash(const void *k);
  */
 struct hashtbl *hashtbl_new(int initial_capacity,
 			    hashtbl_resize_policy resize_policy,
-			    hashtbl_iteration_order iteration_order,
+			    hashtbl_access_order access_order,
 			    HASHTBL_HASH_FUNC hash_fun,
 			    HASHTBL_EQUALS_FUNC equals_fun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
@@ -133,14 +137,14 @@ struct hashtbl *hashtbl_new(int initial_capacity,
 void hashtbl_delete(struct hashtbl *h);
 
 /*
- * Removes a key from the table, returning the associated value.
+ * Removes a key and value from the table.
  *
  * @param h - hash table instance
  * @param k - key to remove
  *
- * Returns the value if the key was found, otherwise NULL.
+ * Returns 0 if key was found, otherwise 1.
  */
-void * hashtbl_remove(struct hashtbl *h, const void *k);
+int hashtbl_remove(struct hashtbl *h, const void *k);
 
 /*
  * Clears all entries and reclaims memory used by each entry.
