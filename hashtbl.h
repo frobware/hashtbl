@@ -71,7 +71,7 @@ typedef void (*HASHTBL_VAL_FREE_FUNC)(void *v);
 typedef enum {
 	HASHTBL_LRU_ORDER = 1,
 	HASHTBL_MRU_ORDER = 2
-} hashtbl_access_order;
+} hashtbl_iteration_order;
 
 typedef enum {
 	HASHTBL_AUTO_RESIZE = 1,
@@ -108,7 +108,7 @@ unsigned int hashtbl_string_hash(const void *k);
  *
  * @param initial_capacity - initial size of the table
  * @param resize_policy	   - HASHTBL_{AUTO_RESIZE, NO_RESIZE}
- * @param access_order     - MRU or LRU
+ * @param iteration_order  - either MRU or LRU
  * @param hash_fun	   - function that creates a hash value from a key
  * @param equals_fun	   - function that checks keys for equality
  * @param kfreefunc	   - function to delete "key"
@@ -118,7 +118,7 @@ unsigned int hashtbl_string_hash(const void *k);
  */
 struct hashtbl *hashtbl_new(int initial_capacity,
 			    hashtbl_resize_policy resize_policy,
-			    hashtbl_access_order access_order,
+			    hashtbl_iteration_order iteration_order,
 			    HASHTBL_HASH_FUNC hash_fun,
 			    HASHTBL_EQUALS_FUNC equals_fun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
@@ -191,7 +191,7 @@ unsigned int hashtbl_apply(const struct hashtbl *h,
 			   HASHTBL_APPLY_FUNC f, void *user_arg);
 
 /*
- * Returns the load factor of the hash table as a percentage.
+ * Returns the load factor of the hash table (as a percentage).
  *
  * @param h - hash table instance
  *
@@ -216,9 +216,10 @@ int hashtbl_resize(struct hashtbl *h, int new_capacity);
 void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter);
 
 /*
- * Advances the iterator, returns 0 if there are no more entries,
- * otherwise 1.
+ * Advances the iterator.
+ *
+ * Returns 1 while there more entries, otherwise 0.
  */
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
 
-#endif /* HASHTBL_H */
+#endif	/* HASHTBL_H */

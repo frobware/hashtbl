@@ -93,7 +93,7 @@ struct hashtbl {
 	int			  table_size;  /* absolute table capacity */
 	int			  resize_threshold;
 	hashtbl_resize_policy	  resize_policy;
-	hashtbl_access_order	  access_order;
+	hashtbl_iteration_order	  iteration_order;
 	HASHTBL_KEY_FREE_FUNC	  kfreefunc;
 	HASHTBL_VAL_FREE_FUNC	  vfreefunc;
 	struct hashtbl_entry	**table;
@@ -145,6 +145,11 @@ static int is_power_of_2(unsigned int x)
 	return ((x & (x - 1)) == 0);
 }
 #endif
+
+static INLINE int resize_threshold(int capacity)
+{
+	return (int)((capacity * HASHTBL_MAX_LOAD_FACTOR) + 0.5);
+}
 
 /*
  * This function computes the next highest power of 2 for a 32-bit
@@ -241,7 +246,7 @@ static INLINE struct hashtbl_entry ** create_table(int *new_capacity)
 
 static INLINE void record_access(struct hashtbl *h, struct hashtbl_entry *entry)
 {
-	if (h->access_order == HASHTBL_MRU_ORDER) {
+	if (h->iteration_order == HASHTBL_MRU_ORDER) {
 		dllist_remove(&entry->list);
 		dllist_add(&entry->list, &h->all_entries);
 	}
@@ -420,7 +425,7 @@ int hashtbl_capacity(const struct hashtbl *h)
 
 struct hashtbl *hashtbl_new(int capacity,
 			    hashtbl_resize_policy resize_policy,
-			    hashtbl_access_order access_order,
+			    hashtbl_iteration_order iteration_order,
 			    HASHTBL_HASH_FUNC hashfun,
 			    HASHTBL_EQUALS_FUNC equalsfun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
@@ -431,15 +436,15 @@ struct hashtbl *hashtbl_new(int capacity,
 	if ((h = HASHTBL_MALLOC(sizeof(*h))) == NULL)
 		return NULL;
 
-	h->hashfun	    = hashfun ? hashfun : hashtbl_direct_hash;
-	h->equalsfun	    = equalsfun ? equalsfun : hashtbl_direct_equals;
-	h->count	    = 0;
-	h->table_size       = capacity;
-	h->resize_threshold = (int)((h->table_size * HASHTBL_MAX_LOAD_FACTOR) + 0.5);
-	h->resize_policy    = resize_policy;
-	h->access_order     = access_order;
-	h->kfreefunc	    = kfreefunc;
-	h->vfreefunc	    = vfreefunc;
+	h->hashfun = hashfun ? hashfun : hashtbl_direct_hash;
+	h->equalsfun = equalsfun ? equalsfun : hashtbl_direct_equals;
+	h->count = 0;
+	h->table_size = capacity;
+	h->resize_threshold = resize_threshold(h->table_size);
+	h->resize_policy = resize_policy;
+	h->iteration_order = iteration_order;
+	h->kfreefunc = kfreefunc;
+	h->vfreefunc = vfreefunc;
 	dllist_init(&h->all_entries);
 
 	if ((h->table = create_table(&h->table_size)) == NULL) {
@@ -466,7 +471,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	if ((new_table = create_table(&capacity)) == NULL)
 		return 1;
 
-	/* Move all entries from old table to new_table. */
+	/* Transfer all entries from old table to new_table. */
 
 	for (node = head->next; node != head; node = node->next) {
 		struct hashtbl_entry **slot_ref;
@@ -479,7 +484,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	HASHTBL_FREE(h->table);
 	h->table_size = capacity;
 	h->table = new_table;
-	h->resize_threshold = (int)((capacity * HASHTBL_MAX_LOAD_FACTOR) + 0.5);
+	h->resize_threshold = resize_threshold(capacity);
 
 	return 0;
 }
