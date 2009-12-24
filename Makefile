@@ -42,7 +42,7 @@ else
 endif
 
 hashtbl_test: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) -o $@ hashtbl.c hashtbl_test.c
+	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='((1<<8))' -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: hashtbl_test.gcov
 

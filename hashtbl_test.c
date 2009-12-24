@@ -39,9 +39,9 @@
 static int ht_size = 1;
 
 struct test_val {
-	int x[12];
-	char c;
+	int x[13];
 	float f;
+	char c;
 	int v;
 };
 
@@ -612,6 +612,7 @@ static int test16(void)
 			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
+	CUT_ASSERT_EQUAL(1, hashtbl_capacity(h));
 	hashtbl_delete(h);
 
 	h = hashtbl_new(0,
@@ -620,16 +621,28 @@ static int test16(void)
 			hashtbl_direct_hash, hashtbl_direct_equals,
 			NULL, NULL,
 			NULL, NULL);
+	CUT_ASSERT_EQUAL(1, hashtbl_capacity(h));
 	CUT_ASSERT_NOT_NULL(h);
 	hashtbl_delete(h);
 
-	h = hashtbl_new((1<<30)+1,
+	h = hashtbl_new(HASHTBL_MAX_TABLE_SIZE +1,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_LRU_ORDER,
+			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
+			NULL, NULL);
+	CUT_ASSERT_EQUAL(HASHTBL_MAX_TABLE_SIZE, hashtbl_capacity(h));
+	CUT_ASSERT_NOT_NULL(h);
+	hashtbl_delete(h);
+
+	h = hashtbl_new(127,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
 			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
+	CUT_ASSERT_EQUAL(128, hashtbl_capacity(h));
 	hashtbl_delete(h);
 
 	h = hashtbl_new(128,
@@ -639,22 +652,19 @@ static int test16(void)
 			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
-	hashtbl_delete(h);
-
-	h = hashtbl_new(128,
-			HASHTBL_AUTO_RESIZE,
-			HASHTBL_LRU_ORDER,
-			hashtbl_direct_hash, hashtbl_direct_equals,
-			NULL, NULL,
-			NULL, NULL);
-	CUT_ASSERT_NOT_NULL(h);
-	hashtbl_resize(h, 128);
-	hashtbl_resize(h, 0);
-	hashtbl_resize(h, 99);
 	hashtbl_resize(h, 128);
 	CUT_ASSERT_EQUAL(128, hashtbl_capacity(h));
-	hashtbl_resize(h, (1<<30)+1);
-	CUT_ASSERT_EQUAL(1<<24, hashtbl_capacity(h));
+	hashtbl_resize(h, 0);
+	CUT_ASSERT_EQUAL(128, hashtbl_capacity(h));
+	hashtbl_resize(h, 99);
+	CUT_ASSERT_EQUAL(128, hashtbl_capacity(h));
+	hashtbl_resize(h, 128);
+	CUT_ASSERT_EQUAL(128, hashtbl_capacity(h));
+	hashtbl_resize(h, HASHTBL_MAX_TABLE_SIZE);
+	CUT_ASSERT_EQUAL(HASHTBL_MAX_TABLE_SIZE, hashtbl_capacity(h));
+	hashtbl_resize(h, 1+HASHTBL_MAX_TABLE_SIZE);
+	CUT_ASSERT_EQUAL(HASHTBL_MAX_TABLE_SIZE, hashtbl_capacity(h));
+
 	hashtbl_delete(h);
 	
 	return 0;
@@ -708,7 +718,7 @@ static int test17(void)
 /* Test lots of insertions and removals. */
 
 /* Pull this out of test18() to avoid blowing the stack. */
-#define TEST18_N 20
+#define TEST18_N 12
 
 static int test18_bigtable[1<<TEST18_N];
 

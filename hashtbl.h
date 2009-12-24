@@ -25,15 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef HASHTBL_H
-#define HASHTBL_H
-
 /**
  * A hash table: efficiently maps keys to values.
- *
- * Note: neither the keys or the values are copied so their lifetime
- * must match that of the hash table.  NULL keys are not permitted
- * either.
  *
  * SYNOPSIS
  *
@@ -45,17 +38,32 @@
  * 5. To clear all keys use hashtbl_clear().
  * 6. To delete a hash table instance use hashtbl_delete().
  * 7. To iterate over all entries use hashtbl_first(), hashtbl_next().
+ *
+ * Note: neither the keys or the values are copied so their lifetime
+ * must match that of the hash table.  NULL keys are not permitted.
+ * Inserting, removing or lookup up NULL keys is therefore undefined.
+ *
+ *
  */
 
-#include <stddef.h>
+#ifndef HASHTBL_H
+#define HASHTBL_H
+
+#ifdef	__cplusplus
+# define __BEGIN_DECLS	extern "C" {
+# define __END_DECLS	}
+#else
+# define __BEGIN_DECLS
+# define __END_DECLS
+#endif
+
+__BEGIN_DECLS
+
+#include <stddef.h>		/* size_t */
 
 /* Opaque types. */
 
 struct hashtbl;
-
-#ifndef HASHTBL_MAX_TABLE_SIZE
-#define HASHTBL_MAX_TABLE_SIZE	(1 << 24)
-#endif
 
 typedef unsigned long hashtbl_hashval_t;
 
@@ -233,5 +241,7 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter);
  * Returns 1 while there more entries, otherwise 0.
  */
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
+
+__END_DECLS
 
 #endif	/* HASHTBL_H */
