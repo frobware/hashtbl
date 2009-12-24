@@ -97,6 +97,7 @@ static int test1(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -119,6 +120,7 @@ static int test2(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k, 0, sizeof(k));
@@ -142,6 +144,7 @@ static int test3(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k, 0, sizeof(k));
@@ -174,6 +177,7 @@ static int test4(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	memset(&k1, 0, sizeof(k1));
@@ -218,6 +222,7 @@ static int test5(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 
@@ -265,6 +270,7 @@ static int test6(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -316,6 +322,7 @@ static int test7(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -354,7 +361,8 @@ static int test8(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
-			free, free);
+			free, free,
+			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_NOT_NULL(k);
@@ -398,6 +406,7 @@ static int test9(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, !hashtbl_insert(h, NULL, NULL));
@@ -414,6 +423,7 @@ static int test10(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_NULL(hashtbl_lookup(h, NULL));
@@ -430,7 +440,8 @@ static int test11(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
-			free, free);
+			free, free,
+			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(1, hashtbl_remove(h, NULL));
 	hashtbl_delete(h);
@@ -446,7 +457,8 @@ static int test12(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
-			free, free);
+			free, free,
+			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 
@@ -506,6 +518,7 @@ static int test13(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -537,6 +550,7 @@ static int test14(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_int_hash, hashtbl_int_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -569,6 +583,7 @@ static int test15(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -594,6 +609,7 @@ static int test16(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	hashtbl_delete(h);
@@ -602,6 +618,7 @@ static int test16(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	hashtbl_delete(h);
@@ -610,6 +627,7 @@ static int test16(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	hashtbl_delete(h);
@@ -618,6 +636,16 @@ static int test16(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
+			NULL, NULL);
+	CUT_ASSERT_NOT_NULL(h);
+	hashtbl_delete(h);
+
+	h = hashtbl_new(128,
+			HASHTBL_AUTO_RESIZE,
+			HASHTBL_LRU_ORDER,
+			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	hashtbl_resize(h, 128);
@@ -646,6 +674,7 @@ static int test17(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -668,15 +697,8 @@ static int test17(void)
 		i--;
 	}
 
-#if 0
-	for (i = 3, hashtbl_iter_init(h, &iter);
-	     entry != NULL;
-	     entry = hashtbl_next(h, &iter), --i) {
-		CUT_ASSERT_EQUAL(keys[i-1], iter.key);
-		CUT_ASSERT_EQUAL(vals[i-1], iter.val);
-	}
-#endif
-	
+	CUT_ASSERT_EQUAL(0, i);
+
 	hashtbl_clear(h);
 	hashtbl_delete(h);
 	return 0;
@@ -699,6 +721,7 @@ static int test18(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
@@ -734,6 +757,7 @@ static int test19(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -821,6 +845,7 @@ static int test20(void)
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_MRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
+			NULL, NULL,
 			NULL, NULL);
 
 	CUT_ASSERT_NOT_NULL(h);

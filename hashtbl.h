@@ -3,7 +3,7 @@
  * Source can be cloned from:
  *
  *     git://github.com/aim-stuff/hashtbl.git
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -47,6 +47,8 @@
  * 7. To iterate over all entries use hashtbl_first(), hashtbl_next().
  */
 
+#include <stddef.h>
+
 /* Opaque types. */
 
 struct hashtbl;
@@ -54,6 +56,8 @@ struct hashtbl;
 #ifndef HASHTBL_MAX_TABLE_SIZE
 #define HASHTBL_MAX_TABLE_SIZE	(1 << 24)
 #endif
+
+typedef unsigned long hashtbl_hashval_t;
 
 /* Hash function. */
 typedef unsigned int (*HASHTBL_HASH_FUNC)(const void *k);
@@ -67,6 +71,10 @@ typedef int (*HASHTBL_APPLY_FUNC)(const void *k, const void *v, const void *u);
 /* Functions for deleting keys and values. */
 typedef void (*HASHTBL_KEY_FREE_FUNC)(void *k);
 typedef void (*HASHTBL_VAL_FREE_FUNC)(void *v);
+
+/* Functions for allocting an freeing memory. */
+typedef void * (*HASHTBL_MALLOC_FUNC)(size_t n);
+typedef void (*HASHTBL_FREE_FUNC)(void *ptr);
 
 typedef enum {
 	HASHTBL_LRU_ORDER = 1,
@@ -109,10 +117,12 @@ unsigned int hashtbl_string_hash(const void *k);
  * @param initial_capacity - initial size of the table
  * @param resize_policy	   - HASHTBL_{AUTO_RESIZE, NO_RESIZE}
  * @param iteration_order  - either MRU or LRU
- * @param hash_fun	   - function that creates a hash value from a key
+ * @param hash_fun	   - function that computes a hash value from a key
  * @param equals_fun	   - function that checks keys for equality
- * @param kfreefunc	   - function to delete "key"
- * @param kfreefunc	   - function to delete "value"
+ * @param kfreefunc	   - function to delete "key" instances
+ * @param kfreefunc	   - function to delete "value" instances
+ * @param mallocfunc	   - function to allocate memory
+ * @param freefunc	   - function to free memory
  *
  * Returns non-null if the table was created succesfully.
  */
@@ -122,7 +132,9 @@ struct hashtbl *hashtbl_new(int initial_capacity,
 			    HASHTBL_HASH_FUNC hash_fun,
 			    HASHTBL_EQUALS_FUNC equals_fun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
-			    HASHTBL_VAL_FREE_FUNC vfreefunc);
+			    HASHTBL_VAL_FREE_FUNC vfreefunc,
+			    HASHTBL_MALLOC_FUNC mallocfunc,
+			    HASHTBL_FREE_FUNC freefunc);
 
 /*
  * Deletes the hash table instance.

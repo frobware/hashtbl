@@ -33,7 +33,7 @@
  * Lookup requires scanning the hashed slot's list for a match with
  * the given key.  Insertion requires adding a new entry to the head
  * of the list in the hashed slot.  Removal requires searching the
- * list and unlinking the element in the list.  The hash table also
+ * list and unlinking the element in the list.	The hash table also
  * maintains a doubly-linked list running through all of the entries;
  * this list is used for iteration, which is normally the order in
  * which keys are inserted into the table.  Alternatively, iteration
@@ -48,14 +48,6 @@
 #endif
 #include <assert.h>
 #include "hashtbl.h"
-
-#ifndef HASHTBL_MALLOC
-#define HASHTBL_MALLOC		malloc
-#endif
-
-#ifndef HASHTBL_FREE
-#define HASHTBL_FREE		free
-#endif
 
 #ifndef HASHTBL_MAX_LOAD_FACTOR
 #define HASHTBL_MAX_LOAD_FACTOR	0.75
@@ -86,16 +78,18 @@ struct hashtbl_entry {
 };
 
 struct hashtbl {
-	struct dllist		  all_entries; /* list head */
+	struct dllist		  all_entries;	/* list head */
 	HASHTBL_HASH_FUNC	  hashfun;
 	HASHTBL_EQUALS_FUNC	  equalsfun;
-	unsigned int              count;       /* number of entries */
-	int			  table_size;  /* absolute table capacity */
+	unsigned int		  count;	/* number of entries */
+	int			  table_size;	/* absolute table capacity */
 	int			  resize_threshold;
 	hashtbl_resize_policy	  resize_policy;
 	hashtbl_iteration_order	  iteration_order;
 	HASHTBL_KEY_FREE_FUNC	  kfreefunc;
 	HASHTBL_VAL_FREE_FUNC	  vfreefunc;
+	HASHTBL_MALLOC_FUNC	  mallocfunc;
+	HASHTBL_FREE_FUNC	  freefunc;
 	struct hashtbl_entry	**table;
 };
 
@@ -154,13 +148,13 @@ static INLINE int resize_threshold(int capacity)
 /*
  * This function computes the next highest power of 2 for a 32-bit
  * integer (X), greater than or equal to X.
- * 
+ *
  * This works by copying the highest set bit to all of the lower bits,
  * and then adding one, which results in carries that set all of the
  * lower bits to 0 and one bit beyond the highest set bit to 1. If the
  * original number was a power of 2, then the decrement will reduce it
  * to one less, so that we round up to the same original value.
- */	
+ */
 static unsigned int roundup_to_next_power_of_2(unsigned int x)
 {
 	x--;
@@ -216,12 +210,13 @@ static INLINE unsigned int int32hash(unsigned int a)
 }
 #endif
 
-/* Create a new table with NEW_CAPACITY slots.  The capacity is
+/* Create a new table with NEW_CAPACITY slots.	The capacity is
  * automatically rounded up to the next power of 2, but not beyond the
- * maximum table size (HASHTBL_MAX_TABLE_SIZE).  *NEW_CAPACITY is set
+ * maximum table size (HASHTBL_MAX_TABLE_SIZE).	 *NEW_CAPACITY is set
  * to the rounded value.
  */
-static INLINE struct hashtbl_entry ** create_table(int *new_capacity)
+static INLINE struct hashtbl_entry ** create_table(const struct hashtbl *h,
+						   int *new_capacity)
 {
 	struct hashtbl_entry **table;
 	int capacity = *new_capacity;
@@ -235,8 +230,8 @@ static INLINE struct hashtbl_entry ** create_table(int *new_capacity)
 	capacity = roundup_to_next_power_of_2(capacity);
 	assert(is_power_of_2(capacity));
 	assert(capacity > 0 && capacity <= HASHTBL_MAX_TABLE_SIZE);
-	
-	if ((table = HASHTBL_MALLOC(capacity * sizeof(*table))) == NULL)
+
+	if ((table = h->mallocfunc(capacity * sizeof(*table))) == NULL)
 		return NULL;
 
 	*new_capacity = capacity; /* output value is normalized capacity */
@@ -257,12 +252,13 @@ static INLINE int slot_num(unsigned int hashval, int table_size)
 	return hashval & (table_size - 1);
 }
 
-static INLINE struct hashtbl_entry *hashtbl_entry_new(unsigned int hashval,
+static INLINE struct hashtbl_entry *hashtbl_entry_new(const struct hashtbl *h,
+						      unsigned int hashval,
 						      void *k, void *v)
 {
 	struct hashtbl_entry *e;
 
-	if ((e = HASHTBL_MALLOC(sizeof(*e))) != NULL) {
+	if ((e = h->mallocfunc(sizeof(*e))) != NULL) {
 		e->key = k;
 		e->val = v;
 		e->hash = hashval;
@@ -330,7 +326,7 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 		return 0;
 	}
 
-	if ((entry = hashtbl_entry_new(h->hashfun(k), k, v)) == NULL)
+	if ((entry = hashtbl_entry_new(h, h->hashfun(k), k, v)) == NULL)
 		return 1;
 
 	/* Find head of list and link new entry at the head. */
@@ -374,7 +370,7 @@ int hashtbl_remove(struct hashtbl *h, const void *k)
 			h->kfreefunc(entry->key);
 		if (h->vfreefunc != NULL)
 			h->vfreefunc(entry->val);
-		HASHTBL_FREE(entry);
+		h->freefunc(entry);
 		return 0;
 	}
 	return 1;
@@ -395,7 +391,7 @@ void hashtbl_clear(struct hashtbl *h)
 			h->vfreefunc(entry->val);
 		h->table[entry->hash & (h->table_size -1)] = NULL;
 		dllist_remove(&entry->list);
-		HASHTBL_FREE(entry);
+		h->freefunc(entry);
 		--h->count;
 	}
 
@@ -408,8 +404,8 @@ void hashtbl_delete(struct hashtbl *h)
 {
 	if (h != NULL) {
 		hashtbl_clear(h);
-		HASHTBL_FREE(h->table);
-		HASHTBL_FREE(h);
+		h->freefunc(h->table);
+		h->freefunc(h);
 	}
 }
 
@@ -429,11 +425,16 @@ struct hashtbl *hashtbl_new(int capacity,
 			    HASHTBL_HASH_FUNC hashfun,
 			    HASHTBL_EQUALS_FUNC equalsfun,
 			    HASHTBL_KEY_FREE_FUNC kfreefunc,
-			    HASHTBL_VAL_FREE_FUNC vfreefunc)
+			    HASHTBL_VAL_FREE_FUNC vfreefunc,
+			    HASHTBL_MALLOC_FUNC mallocfunc,
+			    HASHTBL_FREE_FUNC freefunc)
 {
 	struct hashtbl *h;
 
-	if ((h = HASHTBL_MALLOC(sizeof(*h))) == NULL)
+	mallocfunc = mallocfunc ? mallocfunc : malloc;
+	freefunc = freefunc ? freefunc : free;
+
+	if ((h = (*mallocfunc)(sizeof(*h))) == NULL)
 		return NULL;
 
 	h->hashfun = hashfun ? hashfun : hashtbl_direct_hash;
@@ -445,10 +446,13 @@ struct hashtbl *hashtbl_new(int capacity,
 	h->iteration_order = iteration_order;
 	h->kfreefunc = kfreefunc;
 	h->vfreefunc = vfreefunc;
+	h->mallocfunc = mallocfunc ? mallocfunc : malloc;
+	h->freefunc = freefunc ? freefunc : free;
+
 	dllist_init(&h->all_entries);
 
-	if ((h->table = create_table(&h->table_size)) == NULL) {
-		HASHTBL_FREE(h);
+	if ((h->table = create_table(h, &h->table_size)) == NULL) {
+		h->freefunc(h);
 		return NULL;
 	}
 
@@ -459,7 +463,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 {
 	struct dllist *node, *head = &h->all_entries;
 	struct hashtbl_entry *entry, **new_table;
-	
+
 	/* Don't grow if there's no increase in size. */
 	if (capacity < h->table_size || capacity == h->table_size)
 		return 0;
@@ -468,7 +472,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	if (h->table_size == HASHTBL_MAX_TABLE_SIZE)
 		return 0;
 
-	if ((new_table = create_table(&capacity)) == NULL)
+	if ((new_table = create_table(h, &capacity)) == NULL)
 		return 1;
 
 	/* Transfer all entries from old table to new_table. */
@@ -481,7 +485,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 		*slot_ref = entry;
 	}
 
-	HASHTBL_FREE(h->table);
+	h->freefunc(h->table);
 	h->table_size = capacity;
 	h->table = new_table;
 	h->resize_threshold = resize_threshold(capacity);
