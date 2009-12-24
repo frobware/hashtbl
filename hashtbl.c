@@ -49,10 +49,6 @@
 #include <assert.h>
 #include "hashtbl.h"
 
-#ifndef HASHTBL_MAX_LOAD_FACTOR
-#define HASHTBL_MAX_LOAD_FACTOR	0.75
-#endif
-
 #ifndef HASHTBL_MAX_TABLE_SIZE
 #define HASHTBL_MAX_TABLE_SIZE	(1 << 30)
 #endif
@@ -83,6 +79,7 @@ struct hashtbl_entry {
 
 struct hashtbl {
 	struct dllist		  all_entries;	/* list head */
+	float                     max_load_factor; /* before a resize */
 	HASHTBL_HASH_FUNC	  hashfun;
 	HASHTBL_EQUALS_FUNC	  equalsfun;
 	unsigned int		  count;	/* number of entries */
@@ -144,9 +141,9 @@ static int is_power_of_2(unsigned int x)
 }
 #endif
 
-static INLINE int resize_threshold(int capacity)
+static INLINE int resize_threshold(int capacity, float max_load_factor)
 {
-	return (int)((capacity * HASHTBL_MAX_LOAD_FACTOR) + 0.5);
+	return (int)((capacity * max_load_factor) + 0.5);
 }
 
 /*
@@ -420,6 +417,7 @@ int hashtbl_capacity(const struct hashtbl *h)
 }
 
 struct hashtbl *hashtbl_new(int capacity,
+			    float max_load_factor,
 			    hashtbl_resize_policy resize_policy,
 			    hashtbl_iteration_order iteration_order,
 			    HASHTBL_HASH_FUNC hashfun,
@@ -437,11 +435,15 @@ struct hashtbl *hashtbl_new(int capacity,
 	if ((h = (*mallocfunc)(sizeof(*h))) == NULL)
 		return NULL;
 
+	if (max_load_factor < 0.0)
+		max_load_factor = 0.75;
+
+	h->max_load_factor = max_load_factor;
 	h->hashfun = hashfun ? hashfun : hashtbl_direct_hash;
 	h->equalsfun = equalsfun ? equalsfun : hashtbl_direct_equals;
 	h->count = 0;
 	h->table_size = capacity;
-	h->resize_threshold = resize_threshold(h->table_size);
+	h->resize_threshold = resize_threshold(h->table_size, max_load_factor);
 	h->resize_policy = resize_policy;
 	h->iteration_order = iteration_order;
 	h->kfreefunc = kfreefunc;
@@ -487,7 +489,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	h->freefunc(h->table);	/* free old table */
 	h->table_size = capacity;
 	h->table = new_table;
-	h->resize_threshold = resize_threshold(capacity);
+	h->resize_threshold = resize_threshold(capacity, h->max_load_factor);
 
 	return 0;
 }

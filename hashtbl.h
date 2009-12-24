@@ -135,6 +135,7 @@ unsigned int hashtbl_string_hash(const void *k);
  * Returns non-null if the table was created succesfully.
  */
 struct hashtbl *hashtbl_new(int initial_capacity,
+			    float max_load_factor,
 			    hashtbl_resize_policy resize_policy,
 			    hashtbl_iteration_order iteration_order,
 			    HASHTBL_HASH_FUNC hash_fun,

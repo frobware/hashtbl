@@ -33,6 +33,10 @@
 #include "CUnitTest.h"
 #include "hashtbl.h"
 
+#ifndef HASHTBL_MAX_LOAD_FACTOR
+#define HASHTBL_MAX_LOAD_FACTOR	0.75
+#endif
+
 #define UNUSED_PARAMETER(x)	(void)(x)
 #define NELEMENTS(X)		(sizeof((X)) / sizeof((X)[0]))
 
@@ -93,7 +97,7 @@ static int test1(void)
 	struct hashtbl *h = NULL;
 	struct hashtbl_iter iter;
 	
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -116,7 +120,7 @@ static int test2(void)
 {
 	struct test_key k;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -140,7 +144,7 @@ static int test3(void)
 	struct test_key k;
 	struct test_val v;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -173,7 +177,7 @@ static int test4(void)
 	struct test_key k1, k2;
 	struct test_val v1, v2;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -218,7 +222,7 @@ static int test5(void)
 	struct test_key k1, k2;
 	struct test_val v1, v2;
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -266,7 +270,7 @@ static int test6(void)
 	struct test_val v1, v2;
 	struct hashtbl *h = NULL;
 
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -318,7 +322,7 @@ static int test7(void)
 	struct test_val v;
 	struct hashtbl *h = NULL;
 
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -357,7 +361,7 @@ static int test8(void)
 	struct test_val *v1 = malloc(sizeof(struct test_val));
 	struct test_val *v2 = malloc(sizeof(struct test_val));
 
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -402,7 +406,7 @@ static int test8(void)
 static int test9(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -419,7 +423,7 @@ static int test9(void)
 static int test10(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -436,7 +440,7 @@ static int test10(void)
 static int test11(void)
 {
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -453,7 +457,7 @@ static int test12(void)
 	int test12_max = 100;
 	struct hashtbl *h = NULL;
 	int i;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			key_hash, key_equals,
@@ -514,7 +518,7 @@ static int test13(void)
 	int keys[] = { 100, 200, 300 };
 	int values[] = { 1000, 2000, 3000 };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -546,7 +550,7 @@ static int test14(void)
 	int keys[] = { 100, 200, 300 };
 	int values[] = { 1000, 2000, 3000 };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_int_hash, hashtbl_int_equals,
@@ -579,7 +583,7 @@ static int test15(void)
 	char *keys[] = { "100", "200", "300" };
 	char *values[] = { "1000", "2000", "3000" };
 	struct hashtbl *h = NULL;
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
@@ -605,7 +609,7 @@ static int test16(void)
 {
 	struct hashtbl *h;
 	
-	h = hashtbl_new(-1,
+	h = hashtbl_new(-1, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -615,7 +619,7 @@ static int test16(void)
 	CUT_ASSERT_EQUAL(1, hashtbl_capacity(h));
 	hashtbl_delete(h);
 
-	h = hashtbl_new(0,
+	h = hashtbl_new(0, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -626,6 +630,7 @@ static int test16(void)
 	hashtbl_delete(h);
 
 	h = hashtbl_new(HASHTBL_MAX_TABLE_SIZE +1,
+			HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -636,6 +641,7 @@ static int test16(void)
 	hashtbl_delete(h);
 
 	h = hashtbl_new(127,
+			HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -646,6 +652,7 @@ static int test16(void)
 	hashtbl_delete(h);
 
 	h = hashtbl_new(128,
+			HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -680,7 +687,7 @@ static int test17(void)
 	struct hashtbl *h = NULL;
 	struct hashtbl_iter iter;
        
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_string_hash, hashtbl_string_equals,
@@ -727,7 +734,7 @@ static int test18(void)
 	int i;
 	struct hashtbl *h;
 	
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -763,7 +770,7 @@ static int test19(void)
 	static int keys[] = { 100, 200, 300 };
 	struct hashtbl_iter iter;
 	
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
@@ -851,7 +858,7 @@ static int test20(void)
 	static int keys[] = { 100, 200, 300 };
 	struct hashtbl_iter iter;
 	
-	h = hashtbl_new(ht_size,
+	h = hashtbl_new(ht_size, HASHTBL_MAX_LOAD_FACTOR,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_MRU_ORDER,
 			hashtbl_direct_hash, hashtbl_direct_equals,
