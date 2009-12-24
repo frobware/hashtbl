@@ -50,7 +50,6 @@
 /* Opaque types. */
 
 struct hashtbl;
-struct hashtbl_entry;
 
 #ifndef HASHTBL_MAX_TABLE_SIZE
 #define HASHTBL_MAX_TABLE_SIZE	(1 << 24)
@@ -81,9 +80,7 @@ typedef enum {
 
 struct hashtbl_iter {
 	void *key, *val;
-	const struct hashtbl_entry *entry; /* private: clients
-					    * shouldn't modify
-					    * this! */
+	const void *private; /* clients shouldn't modify this */
 };
 
 /*
@@ -214,16 +211,14 @@ int hashtbl_load_factor(const struct hashtbl *h);
 int hashtbl_resize(struct hashtbl *h, int new_capacity);
 
 /*
- * Return first entry and initialises ITER.  Returns NULL if hash
- * table is empty.
+ * Initialize an iterator.
  */
-const struct hashtbl_entry *hashtbl_first(struct hashtbl *h,
-					  struct hashtbl_iter *iter);
+void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter);
 
 /*
- * Return next entry or NULL if there are no more entries.
+ * Advances the iterator, returns 0 if there are no more entries,
+ * otherwise 1.
  */
-const struct hashtbl_entry *hashtbl_next(struct hashtbl *h,
-					 struct hashtbl_iter *iter);
+int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
 
 #endif /* HASHTBL_H */

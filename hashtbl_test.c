@@ -94,6 +94,8 @@ static int test12_apply_fn1(const void *k, const void *v, const void *u)
 static int test1(void)
 {
 	struct hashtbl *h = NULL;
+	struct hashtbl_iter iter;
+	
 	h = hashtbl_new(ht_size,
 			HASHTBL_AUTO_RESIZE,
 			HASHTBL_LRU_ORDER,
@@ -103,6 +105,9 @@ static int test1(void)
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	hashtbl_clear(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
+	
 	hashtbl_delete(h);
 	return 0;
 }
@@ -639,7 +644,6 @@ static int test17(void)
 	char *vals[] = { "1000", "2000", "3000" };
 	struct hashtbl *h = NULL;
 	struct hashtbl_iter iter;
-	const struct hashtbl_entry *entry;
        
 	h = hashtbl_new(ht_size,
 			HASHTBL_AUTO_RESIZE,
@@ -659,13 +663,23 @@ static int test17(void)
 
 	/* Iteration order should reflect insertion order. */
 
-	for (i = 3, entry = hashtbl_first(h, &iter);
+	i = 3;
+	hashtbl_iter_init(h, &iter);
+	while (hashtbl_iter_next(h, &iter)) {
+		CUT_ASSERT_EQUAL(keys[i-1], iter.key);
+		CUT_ASSERT_EQUAL(vals[i-1], iter.val);
+		i--;
+	}
+
+#if 0
+	for (i = 3, hashtbl_iter_init(h, &iter);
 	     entry != NULL;
 	     entry = hashtbl_next(h, &iter), --i) {
 		CUT_ASSERT_EQUAL(keys[i-1], iter.key);
 		CUT_ASSERT_EQUAL(vals[i-1], iter.val);
 	}
-
+#endif
+	
 	hashtbl_clear(h);
 	hashtbl_delete(h);
 	return 0;
@@ -718,7 +732,6 @@ static int test19(void)
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300 };
 	struct hashtbl_iter iter;
-	const struct hashtbl_entry *entry;
 	
 	h = hashtbl_new(ht_size,
 			HASHTBL_AUTO_RESIZE,
@@ -735,30 +748,35 @@ static int test19(void)
 
 	CUT_ASSERT_EQUAL(3, hashtbl_count(h));
 
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[0]));
 	CUT_ASSERT_EQUAL(2, hashtbl_count(h));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[2]));
 	CUT_ASSERT_EQUAL(1, hashtbl_count(h));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[1]));
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
-	CUT_ASSERT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	for (i = 0; i < (int)NELEMENTS(keys); i++) {
 		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[i], NULL));
@@ -767,24 +785,26 @@ static int test19(void)
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[0]));
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[0], NULL));
 
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[1]));
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[1], NULL));
 
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(3, hashtbl_count(h));
 
@@ -799,7 +819,6 @@ static int test20(void)
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300 };
 	struct hashtbl_iter iter;
-	const struct hashtbl_entry *entry;
 	
 	h = hashtbl_new(ht_size,
 			HASHTBL_AUTO_RESIZE,
@@ -819,56 +838,65 @@ static int test20(void)
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[1]));
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[0]));
 
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[1]));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[1]));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
 
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[0]));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[2], NULL));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[2], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_EQUAL(0, hashtbl_remove(h, &keys[2]));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[1]));
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_first(h, &iter)));
+	hashtbl_iter_init(h, &iter);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[1], *(int *) iter.key);
-	CUT_ASSERT_NOT_NULL((entry = hashtbl_next(h, &iter)));
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[0], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	hashtbl_delete(h);
 	return 0;

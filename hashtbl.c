@@ -442,7 +442,7 @@ struct hashtbl *hashtbl_new(int capacity,
 	h->vfreefunc	    = vfreefunc;
 	dllist_init(&h->all_entries);
 
-	if ((h->table = create_table(&h->capacity)) == NULL) {
+	if ((h->table = create_table(&h->table_size)) == NULL) {
 		HASHTBL_FREE(h);
 		return NULL;
 	}
@@ -537,24 +537,24 @@ int hashtbl_load_factor(const struct hashtbl *h)
 	return (int)(((h->count / (float)h->table_size) * 100.0) + 0.5);
 }
 
-const struct hashtbl_entry * hashtbl_first(struct hashtbl *h,
-					   struct hashtbl_iter *iter)
+void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter)
 {
 	struct dllist *node = h->all_entries.next;
-	if (dllist_is_empty(node)) return NULL;
-	iter->entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-	iter->key = iter->entry->key;
-	iter->val = iter->entry->val;
-	return iter->entry;
+	iter->private = node;
+	iter->key = iter->val = NULL;
 }
 
-const struct hashtbl_entry * hashtbl_next(struct hashtbl *h,
-					  struct hashtbl_iter *iter)
+int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter)
 {
-	struct dllist *node = iter->entry->list.next;
-	if (node == &h->all_entries) return NULL;
-	iter->entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-	iter->key = iter->entry->key;
-	iter->val = iter->entry->val;
-	return iter->entry;
+	struct dllist *node;
+	struct hashtbl_entry *entry;
+	assert(iter->private);
+	node = (struct dllist *)iter->private;
+	if (node == &h->all_entries) return 0;
+	entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+	node = entry->list.next;
+	iter->private = node;
+	iter->key = entry->key;
+	iter->val = entry->val;
+	return 1;
 }
