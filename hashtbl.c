@@ -134,13 +134,6 @@ static INLINE void dllist_remove(struct dllist *node)
 	node->next->prev = node->prev;
 }
 
-#ifndef NDEBUG
-static int is_power_of_2(unsigned int x)
-{
-	return ((x & (x - 1)) == 0);
-}
-#endif
-
 static INLINE int resize_threshold(int capacity, float max_load_factor)
 {
 	return (int)((capacity * max_load_factor) + 0.5);
@@ -167,6 +160,13 @@ static unsigned int roundup_to_next_power_of_2(unsigned int x)
 	x++;
 	return x;
 }
+
+#ifndef NDEBUG
+static int is_power_of_2(unsigned int x)
+{
+	return ((x & (x - 1)) == 0);
+}
+#endif
 
 /*
  * hash helper - Spread the lower order bits.
@@ -195,6 +195,31 @@ static INLINE unsigned long djb2_hash(const unsigned char *str)
 		}
 	}
 	return hash;
+}
+
+static INLINE unsigned int djb_hash(void *key, size_t len)
+{
+	unsigned char *p = key;
+	unsigned int h = 0;
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		h = 33 * h ^ p[i];
+	}
+
+	return h;
+}
+
+static INLINE unsigned int fnv_hash(void *key, size_t len)
+{
+	unsigned char *p = key;
+	unsigned h = 2166136261;
+	size_t i;
+
+	for (i = 0; i < len; i++)
+		h = (h * 16777619) ^ p[i];
+
+	return h;
 }
 
 /* Robert Jenkins' 32 bit integer hash function. */
