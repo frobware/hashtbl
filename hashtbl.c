@@ -43,7 +43,7 @@
 #include <stddef.h>
 #include <stdlib.h>		/* size_t, offsetof, NULL */
 #include <string.h>		/* strcmp */
-#if 0
+#if defined(linux)
 #include <inttypes.h>		/* intptr_t */
 #endif
 #include <assert.h>
@@ -514,7 +514,7 @@ int hashtbl_string_equals(const void *a, const void *b)
 
 unsigned int hashtbl_int_hash(const void *k)
 {
-	return hash_helper(*(const unsigned int *)k);
+	return hash_helper(*(unsigned int *)k);
 }
 
 int hashtbl_int_equals(const void *a, const void *b)
@@ -539,9 +539,8 @@ int hashtbl_load_factor(const struct hashtbl *h)
 
 void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter)
 {
-	struct dllist *node = h->all_entries.next;
-	iter->private = node;
 	iter->key = iter->val = NULL;
+	iter->private = h->all_entries.next;
 }
 
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter)

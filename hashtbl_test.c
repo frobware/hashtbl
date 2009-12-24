@@ -28,9 +28,6 @@
 /* hashtbl_test.c - unit tests for hashtbl */
 
 #include <stdlib.h>
-#if 0
-#include <inttypes.h>
-#endif
 #include <string.h>
 #include <assert.h>
 #include "CUnitTest.h"
