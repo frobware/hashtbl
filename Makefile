@@ -1,4 +1,4 @@
-# Copyright (c) 2009 <Andrew Iain McDermott @ gmail.com>
+# Copyright (c) 2009 <Andrew McDermott>
 #
 # Source can be cloned from:
 #
@@ -23,51 +23,51 @@
 # THE SOFTWARE.
 
 PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
-COMMON_CFLAGS += -Wall -Wextra
+COMMON_CFLAGS += -Wall
 COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith
-COMMON_CFLAGS += -Wuninitialized -O
-COMMON_CFLAGS += -Wsign-compare -Wshadow
-COMMON_CFLAGS += -pedantic
+COMMON_CFLAGS += -Wstrict-aliasing
+#COMMON_CFLAGS += -Wuninitialized -O
+COMMON_CFLAGS += -Wshadow
 CFLAGS        += $(COMMON_CFLAGS)
 CFLAGS        += -g -fno-inline
-#CFLAGS        += -O3 -DNDEBUG
+CFLAGS        += -O3 -DNDEBUG
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test
 ifeq ($(shell uname -s),Linux)
-	@echo $(VALGRIND) ./hashtbl_test
-	@$(VALGRIND) ./hashtbl_test
+	$(VALGRIND) ./hashtbl_test
 else
 	./hashtbl_test
 endif
 
-hashtbl_test: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='((1<<8))' -o $@ hashtbl.c hashtbl_test.c
+hashtbl_test: hashtbl_test.c hashtbl.c hashtbl.h
+	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: hashtbl_test.gcov
 
 hashtbl_test.gcov: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -g -o $@ hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -g -o $@ hashtbl_test.c hashtbl.c
 	./$@
-	gcov $^
+	gcov -a $^
 
 .PHONY : hashtbl_test.pg
 
 hashtbl_test.pg: hashtbl_test.c hashtbl.c
 	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
-		-fwhole-program -combine -pg \
-		-O3 -g \
+	        -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' \
+		-pg -g \
 		 -o $@ hashtbl_test.c hashtbl.c
+	./$@
+	gprof -s
 
 clean:
 	$(RM) -r *.o *.a *.d hashtbl_test.pg hashtbl_test.gcov hashtbl_test *.gcda *.gcov *.pg *.gcno
 
 *.o : Makefile
-hashtbl_test : Makefile
 
-hashtbl.c : hashtbl.h
-hashtbl_test.c : hashtbl.c
-hashtbl_test.c : hashtbl.h
+hashtbl_test: hashtbl_test.c CUnitTest.h hashtbl.h Makefile
 
-hashtbl.o : hashtbl.c hashtbl.h
-hashtbl_test.o: hashtbl_test.c CUnitTest.h hashtbl.h
+.PHONY: TAGS
+
+TAGS:
+	etags *.c *.h

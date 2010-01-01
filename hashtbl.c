@@ -49,8 +49,14 @@
 #include <assert.h>
 #include "hashtbl.h"
 
+#define UNUSED_PARAMETER(X)		(void) (X)
+
 #ifndef HASHTBL_MAX_TABLE_SIZE
-#define HASHTBL_MAX_TABLE_SIZE	(1 << 30)
+#define HASHTBL_MAX_TABLE_SIZE		(1 << 30)
+#endif
+
+#ifndef HASHTBL_DEFAULT_LOAD_FACTOR
+#define HASHTBL_DEFAULT_LOAD_FACTOR	0.75f
 #endif
 
 #if defined(_MSC_VER)
@@ -60,7 +66,7 @@
 #endif
 
 #define DLLIST_CONTAINER_OF(PTR, TYPE, FIELD) \
-	((TYPE *)((char *)PTR - offsetof(TYPE, FIELD)))
+	(TYPE *)(((char *)PTR) - offsetof(TYPE, FIELD))
 
 #define DLLIST_ENTRY(PTR, TYPE, FIELD) \
 	DLLIST_CONTAINER_OF(PTR, TYPE, FIELD)
@@ -69,29 +75,30 @@ struct dllist {
 	struct dllist *next, *prev;
 };
 
+struct hashtbl {
+	struct dllist		  all_entries;
+	float			  max_load_factor;
+	HASHTBL_HASH_FN		  hash_fn;
+	HASHTBL_EQUALS_FN	  equals_fn;
+	unsigned long		  nentries;
+	int			  table_size;
+	int			  resize_threshold;
+	int			  auto_resize;
+	int			  access_order;
+	HASHTBL_KEY_FREE_FN	  key_free;
+	HASHTBL_VAL_FREE_FN	  val_free;
+	HASHTBL_MALLOC_FN	  malloc_fn;
+	HASHTBL_FREE_FN		  free_fn;
+	HASHTBL_EVICTOR_FN	  evictor_fn;
+	struct hashtbl_entry	**table;
+};
+
 struct hashtbl_entry {
 	struct dllist		 list; /* runs through all entries */
 	struct hashtbl_entry	*next; /* [single] linked list head */
 	void			*key;
 	void			*val;
-	unsigned int		 hash; /* hash of key */
-};
-
-struct hashtbl {
-	struct dllist		  all_entries;	/* list head */
-	float                     max_load_factor; /* before a resize */
-	HASHTBL_HASH_FUNC	  hashfun;
-	HASHTBL_EQUALS_FUNC	  equalsfun;
-	unsigned int		  count;	/* number of entries */
-	int			  table_size;	/* absolute table capacity */
-	int			  resize_threshold;
-	hashtbl_resize_policy	  resize_policy;
-	hashtbl_iteration_order	  iteration_order;
-	HASHTBL_KEY_FREE_FUNC	  kfreefunc;
-	HASHTBL_VAL_FREE_FUNC	  vfreefunc;
-	HASHTBL_MALLOC_FUNC	  mallocfunc;
-	HASHTBL_FREE_FUNC	  freefunc;
-	struct hashtbl_entry	**table;
+	hashtbl_hash_t		 hash; /* hash of key */
 };
 
 static INLINE int dllist_is_empty(const struct dllist *list)
@@ -101,12 +108,13 @@ static INLINE int dllist_is_empty(const struct dllist *list)
 
 static INLINE void dllist_init(struct dllist *list)
 {
-	list->next = list->prev = list;
+	list->next = list;
+	list->prev = list;
 }
 
-static INLINE void dllist_add_between(struct dllist *node,
-				      struct dllist *prev,
-				      struct dllist *next)
+static INLINE void dllist_add_node(struct dllist *node,
+				   struct dllist *prev,
+				   struct dllist *next)
 {
 	node->next = next;
 	node->prev = prev;
@@ -118,14 +126,14 @@ static INLINE void dllist_add_between(struct dllist *node,
 
 static INLINE void dllist_add_before(struct dllist *node, struct dllist *head)
 {
-	dllist_add_between(node, head, head->next);
+	dllist_add_node(node, head, head->next);
 }
 
 /* Add node before head. */
 
 static INLINE void dllist_add_after(struct dllist *node, struct dllist *head)
 {
-	dllist_add_between(node, head->prev, head);
+	dllist_add_node(node, head->prev, head);
 }
 
 static INLINE void dllist_remove(struct dllist *node)
@@ -136,7 +144,7 @@ static INLINE void dllist_remove(struct dllist *node)
 
 static INLINE int resize_threshold(int capacity, float max_load_factor)
 {
-	return (int)((capacity * max_load_factor) + 0.5);
+	return (int)((capacity * max_load_factor) + 0.5f);
 }
 
 /*
@@ -149,7 +157,8 @@ static INLINE int resize_threshold(int capacity, float max_load_factor)
  * original number was a power of 2, then the decrement will reduce it
  * to one less, so that we round up to the same original value.
  */
-static unsigned int roundup_to_next_power_of_2(unsigned int x)
+#if 0
+static unsigned int roundup_to_next_power_of_2_oldx(unsigned int x)
 {
 	x--;
 	x |= x >> 1;  /* handle	 2 bit numbers */
@@ -159,6 +168,14 @@ static unsigned int roundup_to_next_power_of_2(unsigned int x)
 	x |= x >> 16; /* handle 32 bit numbers */
 	x++;
 	return x;
+}
+#endif
+
+static int roundup_to_next_power_of_2(int x)
+{
+	int n = 1;
+	while (n < x) n <<=1;
+	return n;
 }
 
 #ifndef NDEBUG
@@ -172,7 +189,7 @@ static int is_power_of_2(unsigned int x)
  * hash helper - Spread the lower order bits.
  * Magic numbers from Java 1.4.
  */
-static INLINE unsigned int hash_helper(unsigned int k)
+static INLINE unsigned int hash_spreader(unsigned int k)
 {
 	unsigned int h = k;
 	h ^= (h >> 20) ^ (h >> 12);
@@ -184,9 +201,9 @@ static INLINE unsigned int hash_helper(unsigned int k)
  * This algorithm was first reported by Dan Bernstein many years ago
  * in comp.lang.c.
  */
-static INLINE unsigned long djb2_hash(const unsigned char *str)
+static INLINE unsigned int djb2_hash(const unsigned char *str)
 {
-	unsigned long hash = 5381;
+	unsigned int hash = 5381;
 
 	if (str != NULL) {
 		int c;
@@ -194,9 +211,11 @@ static INLINE unsigned long djb2_hash(const unsigned char *str)
 			hash = ((hash << 5) + hash) + c;
 		}
 	}
+
 	return hash;
 }
 
+#if 0
 static INLINE unsigned int djb_hash(void *key, size_t len)
 {
 	unsigned char *p = key;
@@ -213,7 +232,7 @@ static INLINE unsigned int djb_hash(void *key, size_t len)
 static INLINE unsigned int fnv_hash(void *key, size_t len)
 {
 	unsigned char *p = key;
-	unsigned h = 2166136261;
+	unsigned int h = 0x811c9dc5; /* 2166136261; */
 	size_t i;
 
 	for (i = 0; i < len; i++)
@@ -223,7 +242,7 @@ static INLINE unsigned int fnv_hash(void *key, size_t len)
 }
 
 /* Robert Jenkins' 32 bit integer hash function. */
-#if 0
+
 static INLINE unsigned int int32hash(unsigned int a)
 {
 	a = (a + 0x7ed55d16) + (a << 12);
@@ -236,38 +255,10 @@ static INLINE unsigned int int32hash(unsigned int a)
 }
 #endif
 
-/* Create a new table with NEW_CAPACITY slots.	The capacity is
- * automatically rounded up to the next power of 2, but not beyond the
- * maximum table size (HASHTBL_MAX_TABLE_SIZE).	 *NEW_CAPACITY is set
- * to the rounded value.
- */
-static INLINE struct hashtbl_entry ** create_table(const struct hashtbl *h,
-						   int *new_capacity)
-{
-	struct hashtbl_entry **table;
-	int capacity = *new_capacity;
-
-	if (capacity < 1) {
-		capacity = 1;
-	} else if (capacity > HASHTBL_MAX_TABLE_SIZE) {
-		capacity = HASHTBL_MAX_TABLE_SIZE;
-	}
-
-	capacity = roundup_to_next_power_of_2(capacity);
-	assert(is_power_of_2(capacity));
-	assert(capacity > 0 && capacity <= HASHTBL_MAX_TABLE_SIZE);
-
-	if ((table = h->mallocfunc(capacity * sizeof(*table))) == NULL)
-		return NULL;
-
-	*new_capacity = capacity; /* output value is normalized capacity */
-	memset(table, 0, capacity * sizeof(*table));
-	return table;
-}
-
 static INLINE void record_access(struct hashtbl *h, struct hashtbl_entry *entry)
 {
-	if (h->iteration_order == HASHTBL_MRU_ORDER) {
+	if (h->access_order) {
+		/* move to head of all_entries */
 		dllist_remove(&entry->list);
 		dllist_add_before(&entry->list, &h->all_entries);
 	}
@@ -278,14 +269,21 @@ static INLINE int slot_num(unsigned int hashval, int table_size)
 	return hashval & (table_size - 1);
 }
 
+static INLINE int remove_eldest(const struct hashtbl *h, unsigned long nentries)
+{
+	UNUSED_PARAMETER(h);
+	UNUSED_PARAMETER(nentries);
+	return 0;
+}
+
 static INLINE struct hashtbl_entry *find_entry(struct hashtbl *h,
-					       unsigned int hv,
+					       hashtbl_hash_t hv,
 					       const void *k)
 {
 	struct hashtbl_entry *entry = h->table[slot_num(hv, h->table_size)];
 
 	while (entry != NULL) {
-		if (entry->hash == hv && h->equalsfun(entry->key, k))
+		if (entry->hash == hv && h->equals_fn(entry->key, k))
 			break;
 		entry = entry->next;
 	}
@@ -293,77 +291,75 @@ static INLINE struct hashtbl_entry *find_entry(struct hashtbl *h,
 	return entry;
 }
 
+/*
+ * Remove an entry from the hash table without deleting the underlying
+ * instance.  Returns the entry, or NULL if not found.
+ */
 static struct hashtbl_entry * remove_key(struct hashtbl *h, const void *k)
 {
-	struct hashtbl_entry **chain_ref, *entry = NULL;
-	unsigned int hash, slot;
+	struct hashtbl_entry **slot_ref, *entry;
+	hashtbl_hash_t hash = h->hash_fn(k);
 
-	if (k == NULL)
-		return entry;
-
-	hash = h->hashfun(k);
-	slot = slot_num(hash, h->table_size);
-	entry = h->table[slot];
-	chain_ref = &h->table[slot];
+	slot_ref = &h->table[slot_num(hash, h->table_size)];
+	entry = *slot_ref;
 
 	while (entry != NULL) {
-		if (entry->hash == hash && h->equalsfun(entry->key, k)) {
+		if (entry->hash == hash && h->equals_fn(entry->key, k)) {
 			/* advance previous node to next entry. */
-			*chain_ref = entry->next;
-			h->count--;
+			*slot_ref = entry->next;
+			h->nentries--;
 			dllist_remove(&entry->list);
-			entry->next = NULL;
-			dllist_init(&entry->list);
 			break;
 		}
-		chain_ref = &entry->next;
+		slot_ref = &entry->next;
 		entry = entry->next;
 	}
+
 	return entry;
 }
 
 int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 {
 	struct hashtbl_entry *entry, **slot_ref;
-	unsigned int hv;
+	hashtbl_hash_t hv;
 
-	if (k == NULL)
-		return 1;
-
-	hv = h->hashfun(k);
+	hv = h->hash_fn(k);
 
 	if ((entry = find_entry(h, hv, k)) != NULL) {
-		if (entry->val != NULL && h->vfreefunc != NULL)
-			h->vfreefunc(entry->val);
-		entry->val = v;	/* replace current value */
-		record_access(h, entry);
+		/* Replace the current value. This should not affect
+		 * the iteration order as the key already exists. */
+		if (h->val_free != NULL)
+			h->val_free(entry->val);
+		entry->val = v;
 		return 0;
 	}
 
-	if ((entry = h->mallocfunc(sizeof(*entry))) == NULL)
+	if ((entry = h->malloc_fn(sizeof(*entry))) == NULL)
 		return 1;
-		
-	entry->key = k;
-	entry->val = v;
-	entry->hash = hv;
-	entry->next = NULL;
-	dllist_init(&entry->list);
 
 	/* Link new entry at the head. */
 	slot_ref = &h->table[slot_num(hv, h->table_size)];
+	entry->key = k;
+	entry->val = v;
+	entry->hash = hv;
 	entry->next = *slot_ref;
-	*slot_ref = entry;
 
-	/* Move entry to the head of all entries. */
+	*slot_ref = entry;
+	/* Move new entry to the head of all entries. */
 	dllist_add_before(&entry->list, &h->all_entries);
 
-	h->count++;
+	h->nentries++;
 
-	if (h->resize_policy == HASHTBL_AUTO_RESIZE) {
-		if (h->count >= (unsigned int)h->resize_threshold) {
-			/* auto resize failures are benign. */
-			(void) hashtbl_resize(h, 2 * h->table_size);
-		}
+	if (h->auto_resize && h->nentries >= h->resize_threshold) {
+		/* auto resize failures are benign. */
+		(void) hashtbl_resize(h, 2 * h->table_size);
+	}
+
+	/* Evict oldest entry. */
+	if (h->evictor_fn(h, h->nentries)) {
+		struct dllist *node = h->all_entries.prev;
+		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+		hashtbl_remove(h, entry->key);
 	}
 
 	return 0;
@@ -371,15 +367,14 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 
 void * hashtbl_lookup(struct hashtbl *h, const void *k)
 {
-	if (k != NULL) {
-		unsigned int hv = h->hashfun(k);
-		struct hashtbl_entry *entry = find_entry(h, hv, k);
+	hashtbl_hash_t hv = h->hash_fn(k);
+	struct hashtbl_entry *entry = find_entry(h, hv, k);
 
-		if (entry != NULL) {
-			record_access(h, entry);
-			return entry->val;
-		}
+	if (entry != NULL) {
+		record_access(h, entry);
+		return entry->val;
 	}
+
 	return NULL;
 }
 
@@ -388,13 +383,14 @@ int hashtbl_remove(struct hashtbl *h, const void *k)
 	struct hashtbl_entry *entry = remove_key(h, k);
 
 	if (entry != NULL) {
-		if (h->kfreefunc != NULL)
-			h->kfreefunc(entry->key);
-		if (h->vfreefunc != NULL)
-			h->vfreefunc(entry->val);
-		h->freefunc(entry);
+		if (h->key_free != NULL)
+			h->key_free(entry->key);
+		if (h->val_free != NULL && entry->val != NULL)
+			h->val_free(entry->val);
+		h->free_fn(entry);
 		return 0;
 	}
+
 	return 1;
 }
 
@@ -407,80 +403,86 @@ void hashtbl_clear(struct hashtbl *h)
 	     node != head;
 	     node = tmp, tmp = node->next) {
 		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-		if (h->kfreefunc != NULL)
-			h->kfreefunc(entry->key);
-		if (h->vfreefunc != NULL)
-			h->vfreefunc(entry->val);
-		h->table[entry->hash & (h->table_size -1)] = NULL;
+		if (h->key_free != NULL)
+			h->key_free(entry->key);
+		if (h->val_free != NULL)
+			h->val_free(entry->val);
 		dllist_remove(&entry->list);
-		h->freefunc(entry);
-		--h->count;
+		h->free_fn(entry);
+		h->nentries--;
 	}
 
+	memset(h->table, 0, h->table_size * sizeof(*h->table));
 	dllist_init(&h->all_entries);
-	assert(h->count == 0);
-	assert(dllist_is_empty(&h->all_entries));
+	assert(h->nentries == 0);
 }
 
 void hashtbl_delete(struct hashtbl *h)
 {
-	if (h != NULL) {
-		hashtbl_clear(h);
-		h->freefunc(h->table);
-		h->freefunc(h);
-	}
+	hashtbl_clear(h);
+	h->free_fn(h->table);
+	h->free_fn(h);
 }
 
-unsigned int hashtbl_count(const struct hashtbl *h)
+unsigned long hashtbl_count(const struct hashtbl *h)
 {
-	return (h != NULL) ? h->count : 0;
+	return h->nentries;
 }
 
 int hashtbl_capacity(const struct hashtbl *h)
 {
-	return (h != NULL) ? h->table_size : 0;
+	return h->table_size;
 }
 
-struct hashtbl *hashtbl_new(int capacity,
-			    float max_load_factor,
-			    hashtbl_resize_policy resize_policy,
-			    hashtbl_iteration_order iteration_order,
-			    HASHTBL_HASH_FUNC hashfun,
-			    HASHTBL_EQUALS_FUNC equalsfun,
-			    HASHTBL_KEY_FREE_FUNC kfreefunc,
-			    HASHTBL_VAL_FREE_FUNC vfreefunc,
-			    HASHTBL_MALLOC_FUNC mallocfunc,
-			    HASHTBL_FREE_FUNC freefunc)
+struct hashtbl *hashtbl_create(int capacity,
+			       float max_load_factor,
+			       int auto_resize,
+			       int access_order,
+			       HASHTBL_HASH_FN hash_fn,
+			       HASHTBL_EQUALS_FN equals_fn,
+			       HASHTBL_KEY_FREE_FN key_free,
+			       HASHTBL_VAL_FREE_FN val_free,
+			       HASHTBL_MALLOC_FN malloc_fn,
+			       HASHTBL_FREE_FN free_fn,
+			       HASHTBL_EVICTOR_FN evictor_fn)
 {
 	struct hashtbl *h;
 
-	mallocfunc = mallocfunc ? mallocfunc : malloc;
-	freefunc = freefunc ? freefunc : free;
+	malloc_fn  = (malloc_fn != NULL) ? malloc_fn : malloc;
+	free_fn	   = (free_fn != NULL) ? free_fn : free;
+	hash_fn	   = (hash_fn != NULL) ? hash_fn : hashtbl_direct_hash;
+	equals_fn  = (equals_fn != NULL) ? equals_fn : hashtbl_direct_equals;
+	evictor_fn = (evictor_fn != NULL) ? evictor_fn : remove_eldest;
 
-	if ((h = (*mallocfunc)(sizeof(*h))) == NULL)
+	if ((h = malloc_fn(sizeof(*h))) == NULL)
 		return NULL;
 
-	if (max_load_factor < 0.0)
-		max_load_factor = 0.75;
+	if (max_load_factor < 0.0) {
+		max_load_factor = HASHTBL_DEFAULT_LOAD_FACTOR;
+	} else if (max_load_factor > 1.0) {
+		max_load_factor = 1.0;
+	}
 
 	h->max_load_factor = max_load_factor;
-	h->hashfun = hashfun ? hashfun : hashtbl_direct_hash;
-	h->equalsfun = equalsfun ? equalsfun : hashtbl_direct_equals;
-	h->count = 0;
-	h->table_size = capacity;
-	h->resize_threshold = resize_threshold(h->table_size, max_load_factor);
-	h->resize_policy = resize_policy;
-	h->iteration_order = iteration_order;
-	h->kfreefunc = kfreefunc;
-	h->vfreefunc = vfreefunc;
-	h->mallocfunc = mallocfunc ? mallocfunc : malloc;
-	h->freefunc = freefunc ? freefunc : free;
+	h->hash_fn = hash_fn;
+	h->equals_fn = equals_fn;
+	h->nentries = 0;
+	h->table_size = 0;	/* must be 0 for resize() to work */
+	h->resize_threshold = 0;
+	h->auto_resize = auto_resize;
+	h->access_order = access_order;
+	h->key_free = key_free;
+	h->val_free = val_free;
+	h->malloc_fn = malloc_fn;
+	h->free_fn = free_fn;
+	h->evictor_fn = evictor_fn;
+	h->table = NULL;
 
 	dllist_init(&h->all_entries);
 
-	if ((h->table = create_table(h, &h->table_size)) == NULL) {
-		h->freefunc(h);
-		return NULL;
+	if (hashtbl_resize(h, capacity) != 0) {
+		h->free_fn(h);
+		h = NULL;
 	}
 
 	return h;
@@ -490,18 +492,31 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 {
 	struct dllist *node, *head = &h->all_entries;
 	struct hashtbl_entry *entry, **new_table;
+	
+	if (capacity < 1) {
+		capacity = 1;
+	} else if (capacity >= HASHTBL_MAX_TABLE_SIZE) {
+		capacity = HASHTBL_MAX_TABLE_SIZE;
+	} else {
+		capacity = roundup_to_next_power_of_2(capacity);
+	}
 
-	if (capacity > HASHTBL_MAX_TABLE_SIZE)
-		return 0;
+	assert(is_power_of_2(capacity));
+	assert(capacity > 0 && capacity <= HASHTBL_MAX_TABLE_SIZE);
 
-	/* Don't grow if there's no increase in size. */
+	/* Don't grow if there is no change to the current size. */
+
 	if (capacity < h->table_size || capacity == h->table_size)
 		return 0;
 
-	if ((new_table = create_table(h, &capacity)) == NULL)
+	new_table = h->malloc_fn(capacity * sizeof(*new_table));
+
+	if (new_table == NULL)
 		return 1;
 
-	/* Transfer all entries from old table to new_table. */
+	memset(new_table, 0, capacity * sizeof(*new_table));
+
+	/* Transfer all entries from old table to new table. */
 
 	for (node = head->next; node != head; node = node->next) {
 		struct hashtbl_entry **slot_ref;
@@ -511,7 +526,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 		*slot_ref = entry;
 	}
 
-	h->freefunc(h->table);	/* free old table */
+	if (h->table != NULL) h->free_fn(h->table);
 	h->table_size = capacity;
 	h->table = new_table;
 	h->resize_threshold = resize_threshold(capacity, h->max_load_factor);
@@ -519,25 +534,25 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	return 0;
 }
 
-unsigned int hashtbl_apply(const struct hashtbl *h,
-			   HASHTBL_APPLY_FUNC apply, void *user_arg)
+unsigned long hashtbl_apply(const struct hashtbl *h,
+			    HASHTBL_APPLY_FN apply, void *client_data)
 {
-	unsigned int count = 0;
+	unsigned long nentries = 0;
 	struct dllist *node;
 	const struct dllist *head = &h->all_entries;
 
 	for (node = head->next; node != head; node = node->next) {
 		struct hashtbl_entry *entry;
 		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-		count++;
-		if (apply(entry->key, entry->val, user_arg) != 1)
-			return count;
+		nentries++;
+		if (apply(entry->key, entry->val, client_data) != 1)
+			return nentries;
 	}
 
-	return count;
+	return nentries;
 }
 
-unsigned int hashtbl_string_hash(const void *k)
+hashtbl_hash_t hashtbl_string_hash(const void *k)
 {
 	return djb2_hash((const unsigned char *)k);
 }
@@ -547,9 +562,9 @@ int hashtbl_string_equals(const void *a, const void *b)
 	return strcmp(((const char *)a), (const char *)b) == 0;
 }
 
-unsigned int hashtbl_int_hash(const void *k)
+hashtbl_hash_t hashtbl_int_hash(const void *k)
 {
-	return hash_helper(*(unsigned int *)k);
+	return *(unsigned int *)k;
 }
 
 int hashtbl_int_equals(const void *a, const void *b)
@@ -557,9 +572,9 @@ int hashtbl_int_equals(const void *a, const void *b)
 	return *((const int *)a) == *((const int *)b);
 }
 
-unsigned int hashtbl_direct_hash(const void *k)
+hashtbl_hash_t hashtbl_direct_hash(const void *k)
 {
-	return hash_helper((intptr_t)k);
+	return hash_spreader((uintptr_t)k);
 }
 
 int hashtbl_direct_equals(const void *a, const void *b)
@@ -567,27 +582,41 @@ int hashtbl_direct_equals(const void *a, const void *b)
 	return a == b;
 }
 
-int hashtbl_load_factor(const struct hashtbl *h)
+float hashtbl_load_factor(const struct hashtbl *h)
 {
-	return (int)(((h->count / (float)h->table_size) * 100.0) + 0.5);
+	return h->nentries / (float)h->table_size;
 }
 
-void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter)
+void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
+		       hashtbl_iter_direction direction)
 {
 	iter->key = iter->val = NULL;
-	iter->private = h->all_entries.next;
+	iter->private.direction = direction;
+
+	if (direction == HASHTBL_FORWARD_ITERATOR) {
+		iter->private.p = h->all_entries.next;
+	} else {
+		iter->private.p = h->all_entries.prev;
+	}
 }
 
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter)
 {
-	struct dllist *node;
 	struct hashtbl_entry *entry;
-	assert(iter->private);
-	node = (struct dllist *)iter->private;
-	if (node == &h->all_entries) return 0;
+	struct dllist *node = (struct dllist *)iter->private.p;
+
+	if (node == &h->all_entries)
+		return 0;
+
+	if (iter->private.direction == HASHTBL_FORWARD_ITERATOR) {
+		iter->private.p = node->next;
+	} else {
+		iter->private.p = node->prev;
+	}
+
 	entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-	iter->private = entry->list.next;
 	iter->key = entry->key;
 	iter->val = entry->val;
+
 	return 1;
 }

@@ -30,125 +30,130 @@
  *
  * SYNOPSIS
  *
- * 1. A hash table is created with hashtbl_new().
+ * 1. A hash table is created with hashtbl_create().
  * 2. To insert an entry use hashtbl_insert().
  * 3. To lookup a key use hashtbl_lookup().
  * 4. To remove a key use hashtbl_remove().
  * 5. To apply a function over all entries use hashtbl_apply().
  * 5. To clear all keys use hashtbl_clear().
  * 6. To delete a hash table instance use hashtbl_delete().
- * 7. To iterate over all entries use hashtbl_first(), hashtbl_next().
+ * 7. To iterate over all entries use hashtbl_iter_init(), hashtbl_iter_next().
  *
  * Note: neither the keys or the values are copied so their lifetime
  * must match that of the hash table.  NULL keys are not permitted.
  * Inserting, removing or lookup up NULL keys is therefore undefined.
- *
- *
  */
 
 #ifndef HASHTBL_H
 #define HASHTBL_H
 
 #ifdef	__cplusplus
-# define __BEGIN_DECLS	extern "C" {
-# define __END_DECLS	}
+# define __HASHTBL_BEGIN_DECLS	extern "C" {
+# define __HASHTBL_END_DECLS	}
 #else
-# define __BEGIN_DECLS
-# define __END_DECLS
+# define __HASHTBL_BEGIN_DECLS
+# define __HASHTBL_END_DECLS
 #endif
 
-__BEGIN_DECLS
+__HASHTBL_BEGIN_DECLS
 
 #include <stddef.h>		/* size_t */
 
 /* Opaque types. */
-
 struct hashtbl;
 
-typedef unsigned long hashtbl_hashval_t;
+/* Hash value type. */
+typedef unsigned int hashtbl_hash_t;
 
 /* Hash function. */
-typedef unsigned int (*HASHTBL_HASH_FUNC)(const void *k);
+typedef hashtbl_hash_t (*HASHTBL_HASH_FN)(const void *k);
 
-/* Equals function. */
-typedef int (*HASHTBL_EQUALS_FUNC)(const void *a, const void *b);
+/* Value equality function. */
+typedef int (*HASHTBL_EQUALS_FN)(const void *a, const void *b);
 
 /* Apply function. */
-typedef int (*HASHTBL_APPLY_FUNC)(const void *k, const void *v, const void *u);
+typedef int (*HASHTBL_APPLY_FN)(const void *k, const void *v,
+				const void *client_data);
 
 /* Functions for deleting keys and values. */
-typedef void (*HASHTBL_KEY_FREE_FUNC)(void *k);
-typedef void (*HASHTBL_VAL_FREE_FUNC)(void *v);
+typedef void (*HASHTBL_KEY_FREE_FN)(void *k);
+typedef void (*HASHTBL_VAL_FREE_FN)(void *v);
 
-/* Functions for allocting an freeing memory. */
-typedef void * (*HASHTBL_MALLOC_FUNC)(size_t n);
-typedef void (*HASHTBL_FREE_FUNC)(void *ptr);
+/* Functions for allocating and freeing memory. */
+typedef void * (*HASHTBL_MALLOC_FN)(size_t n);
+typedef void (*HASHTBL_FREE_FN)(void *ptr);
+
+/* Function for removing entries. */
+typedef int (*HASHTBL_EVICTOR_FN)(const struct hashtbl *h,
+				  unsigned long count);
 
 typedef enum {
-	HASHTBL_LRU_ORDER = 1,
-	HASHTBL_MRU_ORDER = 2
-} hashtbl_iteration_order;
-
-typedef enum {
-	HASHTBL_AUTO_RESIZE = 1,
-	HASHTBL_NO_RESIZE   = 2
-} hashtbl_resize_policy;
+	HASHTBL_FORWARD_ITERATOR = 1,
+	HASHTBL_REVERSE_ITERATOR = 2
+} hashtbl_iter_direction;
 
 struct hashtbl_iter {
 	void *key, *val;
-	const void *private; /* clients shouldn't modify this */
+	/* private: clients should not touch these fields. */
+	struct {
+		hashtbl_iter_direction direction;
+		const void *p;
+	} private;
 };
 
 /*
  * [Default] Hash function.
  */
-unsigned int hashtbl_direct_hash(const void *k);
+hashtbl_hash_t hashtbl_direct_hash(const void *k);
 
 /*
  * [Default] Key equals function.
  *
- * Returns 1 if key "a" equals key "b".
+ * Returns 1 if pointer "a" equals key pointer "b".
  */
 int hashtbl_direct_equals(const void *a, const void *b);
 
 /* Hash functions for integer keys/values. */
-unsigned int hashtbl_int_hash(const void *k);
+hashtbl_hash_t hashtbl_int_hash(const void *k);
 int hashtbl_int_equals(const void *a, const void *b);
 
 /* Hash functions for nul-terminated string keys/values. */
+hashtbl_hash_t hashtbl_string_hash(const void *k);
 int hashtbl_string_equals(const void *a, const void *b);
-unsigned int hashtbl_string_hash(const void *k);
 
 /*
  * Creates a new hash table.
  *
  * @param initial_capacity - initial size of the table
- * @param resize_policy	   - HASHTBL_{AUTO_RESIZE, NO_RESIZE}
- * @param iteration_order  - either MRU or LRU
- * @param hash_fun	   - function that computes a hash value from a key
- * @param equals_fun	   - function that checks keys for equality
- * @param kfreefunc	   - function to delete "key" instances
- * @param kfreefunc	   - function to delete "value" instances
- * @param mallocfunc	   - function to allocate memory
- * @param freefunc	   - function to free memory
+ * @param max_load_factor  - before resizing (0.0 uses a default value)
+ * @param auto_resize	   - if true, table grows (N*2) as new keys are added
+ * @param access_order	   - if true, iteration order is most recently accessed
+ * @param hash_func	   - function that computes a hash value from a key
+ * @param equals_func	   - function that checks keys for equality
+ * @param key_free_func	   - function to delete keys
+ * @param val_free_func	   - function to delete values
+ * @param malloc_func	   - function to allocate memory (e.g., malloc)
+ * @param free_func	   - function to free memory (e.g., free)
+ * @param evictor_func	   - function to evict entries as new keys are added
  *
- * Returns non-null if the table was created succesfully.
+ * Returns non-null if the table was created successfully.
  */
-struct hashtbl *hashtbl_new(int initial_capacity,
-			    float max_load_factor,
-			    hashtbl_resize_policy resize_policy,
-			    hashtbl_iteration_order iteration_order,
-			    HASHTBL_HASH_FUNC hash_fun,
-			    HASHTBL_EQUALS_FUNC equals_fun,
-			    HASHTBL_KEY_FREE_FUNC kfreefunc,
-			    HASHTBL_VAL_FREE_FUNC vfreefunc,
-			    HASHTBL_MALLOC_FUNC mallocfunc,
-			    HASHTBL_FREE_FUNC freefunc);
+struct hashtbl *hashtbl_create(int initial_capacity,
+			       float max_load_factor,
+			       int auto_resize,
+			       int access_order,
+			       HASHTBL_HASH_FN hash_fun,
+			       HASHTBL_EQUALS_FN equals_fun,
+			       HASHTBL_KEY_FREE_FN key_free_func,
+			       HASHTBL_VAL_FREE_FN val_free_func,
+			       HASHTBL_MALLOC_FN malloc_func,
+			       HASHTBL_FREE_FN free_func,
+			       HASHTBL_EVICTOR_FN evictor_func);
 
 /*
  * Deletes the hash table instance.
  *
- * All the keys are removed via hashtbl_clear().
+ * All the entries are removed via hashtbl_clear().
  *
  * @param h - hash table
  */
@@ -172,18 +177,18 @@ void hashtbl_clear(struct hashtbl *h);
 /*
  * Inserts a new key with associated value.
  *
- * @param h - hashtable instance
+ * @param h - hash table instance
  * @param k - key to insert
  * @param v - value associated with key
  *
- * Returns 0 on succees, or 1 if a new entry cannot be created.
+ * Returns 0 on success, or 1 if a new entry cannot be created.
  */
 int hashtbl_insert(struct hashtbl *h, void *k, void *v);
 
 /*
  * Lookup an existing key.
  *
- * @param h - hashtable instance
+ * @param h - hash table instance
  * @param k - the search key
  *
  * Returns the value associated with key, or NULL if key is not present.
@@ -192,11 +197,15 @@ void * hashtbl_lookup(struct hashtbl *h, const void *k);
 
 /*
  * Returns the number of entries in the table.
+ *
+ * @param h - hash table instance
  */
-unsigned int hashtbl_count(const struct hashtbl *h);
+unsigned long hashtbl_count(const struct hashtbl *h);
 
 /*
  * Returns the table's capacity.
+ *
+ * @param h - hash table instance
  */
 int hashtbl_capacity(const struct hashtbl *h);
 
@@ -206,43 +215,52 @@ int hashtbl_capacity(const struct hashtbl *h);
  * The apply function should return 0 to terminate the enumeration
  * early.
  *
+ * @h - hash table instance
+ * @fn - function to apply to each table entry
+ * @client_data - arbitrary user data
+ *
  * Returns the number of entries the function was applied to.
  */
-unsigned int hashtbl_apply(const struct hashtbl *h,
-			   HASHTBL_APPLY_FUNC f, void *user_arg);
+unsigned long hashtbl_apply(const struct hashtbl *h,
+			    HASHTBL_APPLY_FN fn,
+			    void *client_data);
 
 /*
- * Returns the load factor of the hash table (as a percentage).
+ * Returns the load factor of the hash table.
  *
  * @param h - hash table instance
  *
  * The load factor is a ratio and is calculated as:
  *
  *   hashtbl_count() / hashtbl_capacity()
- *
- * and expressed as a percentage.
  */
-int hashtbl_load_factor(const struct hashtbl *h);
+float hashtbl_load_factor(const struct hashtbl *h);
 
 /*
  * Resize the hash table.
  *
- * Returns 0 on succees, or 1 if no memory could be allocated.
+ * Returns 0 on success, or 1 if no memory could be allocated.
  */
 int hashtbl_resize(struct hashtbl *h, int new_capacity);
 
 /*
- * Initialize an iterator.
+ * Initialize a forward iterator.
+ *
+ * @param h - hash table instance
+ * @param iter - iterator to initialize
+ * @param direction - either FORWARD or REVERSE
  */
-void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter);
+void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
+		       hashtbl_iter_direction direction);
 
 /*
  * Advances the iterator.
  *
- * Returns 1 while there more entries, otherwise 0.
+ * Returns 1 while there more entries, otherwise 0.  The key and value
+ * can be accessed through the iterator structure.
  */
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
 
-__END_DECLS
+__HASHTBL_END_DECLS
 
 #endif	/* HASHTBL_H */
