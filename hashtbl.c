@@ -165,7 +165,7 @@ static int is_power_of_2(unsigned int x)
  * hash helper - Spread the lower order bits.
  * Magic numbers from Java 1.4.
  */
-static INLINE unsigned int hash_spreader(unsigned int k)
+static INLINE unsigned int hash_spreader(unsigned long k)
 {
 	unsigned int h = k;
 	h ^= (h >> 20) ^ (h >> 12);
