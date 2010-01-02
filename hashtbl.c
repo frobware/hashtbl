@@ -147,30 +147,6 @@ static INLINE int resize_threshold(int capacity, float max_load_factor)
 	return (int)((capacity * max_load_factor) + 0.5f);
 }
 
-/*
- * This function computes the next highest power of 2 for a 32-bit
- * integer (X), greater than or equal to X.
- *
- * This works by copying the highest set bit to all of the lower bits,
- * and then adding one, which results in carries that set all of the
- * lower bits to 0 and one bit beyond the highest set bit to 1. If the
- * original number was a power of 2, then the decrement will reduce it
- * to one less, so that we round up to the same original value.
- */
-#if 0
-static unsigned int roundup_to_next_power_of_2_oldx(unsigned int x)
-{
-	x--;
-	x |= x >> 1;  /* handle	 2 bit numbers */
-	x |= x >> 2;  /* handle	 4 bit numbers */
-	x |= x >> 4;  /* handle	 8 bit numbers */
-	x |= x >> 8;  /* handle 16 bit numbers */
-	x |= x >> 16; /* handle 32 bit numbers */
-	x++;
-	return x;
-}
-#endif
-
 static int roundup_to_next_power_of_2(int x)
 {
 	int n = 1;
@@ -214,46 +190,6 @@ static INLINE unsigned int djb2_hash(const unsigned char *str)
 
 	return hash;
 }
-
-#if 0
-static INLINE unsigned int djb_hash(void *key, size_t len)
-{
-	unsigned char *p = key;
-	unsigned int h = 0;
-	size_t i;
-
-	for (i = 0; i < len; i++) {
-		h = 33 * h ^ p[i];
-	}
-
-	return h;
-}
-
-static INLINE unsigned int fnv_hash(void *key, size_t len)
-{
-	unsigned char *p = key;
-	unsigned int h = 0x811c9dc5; /* 2166136261; */
-	size_t i;
-
-	for (i = 0; i < len; i++)
-		h = (h * 16777619) ^ p[i];
-
-	return h;
-}
-
-/* Robert Jenkins' 32 bit integer hash function. */
-
-static INLINE unsigned int int32hash(unsigned int a)
-{
-	a = (a + 0x7ed55d16) + (a << 12);
-	a = (a ^ 0xc761c23c) ^ (a >> 19);
-	a = (a + 0x165667b1) + (a << 5);
-	a = (a + 0xd3a2646c) ^ (a << 9);
-	a = (a + 0xfd7046c5) + (a << 3);
-	a = (a ^ 0xb55a4f09) ^ (a >> 16);
-	return a;
-}
-#endif
 
 static INLINE void record_access(struct hashtbl *h, struct hashtbl_entry *entry)
 {
