@@ -86,12 +86,12 @@ static int test6_apply_fn2(const void *k, const void *v, const void *u)
 	return 0;
 }
 
-static int test12_apply_fn1(const void *k, const void *v, const void *u)
+static int test9_apply_fn1(const void *k, const void *v, const void *u)
 {
 	struct test_key *k1 = (struct test_key *)k;
 	struct test_val *v1 = (struct test_val *)v;
-	int test12_max = *(int *) u;
-	CUT_ASSERT_EQUAL(v1->v - test12_max, k1->k);
+	int test9_max = *(int *) u;
+	CUT_ASSERT_EQUAL(v1->v - test9_max, k1->k);
 	return 1;
 }
 
@@ -414,65 +414,9 @@ static int test8(void)
 	return 0;
 }
 
-/* Test null key insertion. */
-
-#if 0
 static int test9(void)
 {
-	struct hashtbl *h;
-	h = hashtbl_create(ht_size,
-			   HASHTBL_MAX_LOAD_FACTOR,
-			   1,
-			   0,
-			   key_hash, key_equals,
-			   NULL, NULL,
-			   NULL, NULL, NULL);
-	CUT_ASSERT_NOT_NULL(h);
-	CUT_ASSERT_EQUAL(0, !hashtbl_insert(h, NULL, NULL));
-	hashtbl_delete(h);
-	return 0;
-}
-
-/* Test null key lookup. */
-
-static int test10(void)
-{
-	struct hashtbl *h;
-	h = hashtbl_create(ht_size,
-			   HASHTBL_MAX_LOAD_FACTOR,
-			   1,
-			   0,
-			   key_hash, key_equals,
-			   NULL, NULL,
-			   NULL, NULL, NULL);
-	CUT_ASSERT_NOT_NULL(h);
-	CUT_ASSERT_NULL(hashtbl_lookup(h, NULL));
-	hashtbl_delete(h);
-	return 0;
-}
-
-/* Test null key removal. */
-
-static int test11(void)
-{
-	struct hashtbl *h;
-	h = hashtbl_create(ht_size,
-			   HASHTBL_MAX_LOAD_FACTOR,
-			   1,
-			   0,
-			   key_hash, key_equals,
-			   free, free,
-			   NULL, NULL, NULL);
-	CUT_ASSERT_NOT_NULL(h);
-	CUT_ASSERT_EQUAL(1, hashtbl_remove(h, NULL));
-	hashtbl_delete(h);
-	return 0;
-}
-#endif
-
-static int test12(void)
-{
-	int test12_max = 100;
+	int test9_max = 100;
 	struct hashtbl *h;
 	int i;
 	h = hashtbl_create(ht_size,
@@ -485,7 +429,7 @@ static int test12(void)
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 
-	for (i = 0; i < test12_max; i++) {
+	for (i = 0; i < test9_max; i++) {
 		struct test_key *k = malloc(sizeof(struct test_key));
 		struct test_val *v = malloc(sizeof(struct test_val));
 		CUT_ASSERT_NOT_NULL(k);
@@ -493,23 +437,23 @@ static int test12(void)
 		memset(k, 0, sizeof(*k));
 		memset(v, 0, sizeof(*v));
 		k->k = i;
-		v->v = i + test12_max;
+		v->v = i + test9_max;
 		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, k, v));
 		CUT_ASSERT_EQUAL(i + 1, (int) hashtbl_count(h));
-		CUT_ASSERT_EQUAL(i + test12_max,
+		CUT_ASSERT_EQUAL(i + test9_max,
 				 ((struct test_val *)hashtbl_lookup(h, k))->v);
 	}
 
-	hashtbl_apply(h, test12_apply_fn1, &test12_max);
+	hashtbl_apply(h, test9_apply_fn1, &test9_max);
 
-	for (i = 0; i < test12_max; i++) {
+	for (i = 0; i < test9_max; i++) {
 		struct test_key k;
 		struct test_val *v;
 		memset(&k, 0, sizeof(k));
 		k.k = i;
 		v = hashtbl_lookup(h, &k);
 		CUT_ASSERT_NOT_NULL(v);
-		CUT_ASSERT_EQUAL(i + test12_max, v->v);
+		CUT_ASSERT_EQUAL(i + test9_max, v->v);
 	}
 
 	for (i = 99; i >= 0; i--) {
@@ -519,7 +463,7 @@ static int test12(void)
 		k.k = i;
 		v = hashtbl_lookup(h, &k);
 		CUT_ASSERT_NOT_NULL(v);
-		CUT_ASSERT_EQUAL(v->v - test12_max, i);
+		CUT_ASSERT_EQUAL(v->v - test9_max, i);
 	}
 
 	hashtbl_clear(h);
@@ -531,7 +475,7 @@ static int test12(void)
 
 /* Test direct hash/equals functions. */
 
-static int test13(void)
+static int test10(void)
 {
 	int i;
 	int keys[] = { 100, 200, 300 };
@@ -564,7 +508,7 @@ static int test13(void)
 
 /* Test int hash/equals functions. */
 
-static int test14(void)
+static int test11(void)
 {
 	unsigned int i;
 	int keys[] = { 100, 200, 300 };
@@ -598,7 +542,7 @@ static int test14(void)
 
 /* Test string hash/equals functions. */
 
-static int test15(void)
+static int test12(void)
 {
 	unsigned int i;
 	char *keys[]   = { "100", "200", "300" };
@@ -630,7 +574,7 @@ static int test15(void)
 
 /* Test initial_capacity boundary values. */
 
-static int test16(void)
+static int test13(void)
 {
 	struct hashtbl *h;
 	
@@ -725,7 +669,7 @@ static int test16(void)
 
 /* Test hashtbl_iter */
 
-static int test17(void)
+static int test14(void)
 {
 	unsigned int i;
 	char *keys[] = { "100", "200", "300" };
@@ -781,11 +725,11 @@ static int test17(void)
 /* Test lots of insertions and removals. */
 
 /* Pull this out of test18() to avoid blowing the stack. */
-#define TEST18_N 12
+#define TEST15_N 12
 
-static int test18_bigtable[1<<TEST18_N];
+static int test15_bigtable[1<<TEST15_N];
 
-static int test18(void)
+static int test15(void)
 {
 	int i;
 	struct hashtbl *h;
@@ -800,17 +744,17 @@ static int test18(void)
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 
-	for (i = 0; i < (1 << TEST18_N); i++) {
-		int *k = &test18_bigtable[i];
-		test18_bigtable[i] = i;
+	for (i = 0; i < (1 << TEST15_N); i++) {
+		int *k = &test15_bigtable[i];
+		test15_bigtable[i] = i;
 		CUT_ASSERT_EQUAL(0, hashtbl_insert(h, k, k));
 		CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, k));
 	}
 
 	/* Iteration order should reflect insertion order. */
 
-	for (i = 0; i < (1 << TEST18_N); i++) {
-		int *k = &test18_bigtable[i];
+	for (i = 0; i < (1 << TEST15_N); i++) {
+		int *k = &test15_bigtable[i];
 		CUT_ASSERT_EQUAL(0, hashtbl_remove(h, k));
 	}
 
@@ -820,7 +764,7 @@ static int test18(void)
 
 /* Test LRU behaviour. */
 
-static int test19(void)
+static int test16(void)
 {
 	int i;
 	struct hashtbl *h;
@@ -910,7 +854,7 @@ static int test19(void)
 
 /* Test MRU behaviour. */
 
-static int test20(void)
+static int test17(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300 };
@@ -1002,14 +946,14 @@ static int test20(void)
 
 /* Test LRU eviction behaviour. */
 
-static int test21_remove_eldest_1(const struct hashtbl *h, unsigned long count)
+static int test18_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 {
 	UNUSED_PARAMETER(h);
 	CUT_ASSERT_EQUAL(1, count);
 	return 1;
 }
 
-static int test21(void)
+static int test18(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300 };
@@ -1021,7 +965,7 @@ static int test21(void)
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
 			   NULL, NULL,
-			   test21_remove_eldest_1);
+			   test18_remove_eldest_1);
 
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[0], &keys[0]));
@@ -1035,7 +979,7 @@ static int test21(void)
 	return 0;
 }
 
-static int test22_remove_eldest_1(const struct hashtbl *h, unsigned long count)
+static int test19_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 {
 	UNUSED_PARAMETER(h);
 	UNUSED_PARAMETER(count);
@@ -1045,7 +989,7 @@ static int test22_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 		return 0;
 }
 
-static int test22(void)
+static int test19(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300, 400, 500, 600 };
@@ -1058,7 +1002,7 @@ static int test22(void)
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
 			   NULL, NULL,
-			   test22_remove_eldest_1);
+			   test19_remove_eldest_1);
 
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[0], &keys[0]));
@@ -1082,7 +1026,7 @@ static int test22(void)
 	return 0;
 }
 
-static int test23_remove_eldest_1(const struct hashtbl *h, unsigned long count)
+static int test20_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 {
 	UNUSED_PARAMETER(h);
 	UNUSED_PARAMETER(count);
@@ -1094,7 +1038,7 @@ static int test23_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 
 /* Test MRU eviction behaviour. */
 
-static int test23(void)
+static int test20(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300, 400, 500, 600 };
@@ -1107,7 +1051,7 @@ static int test23(void)
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
 			   NULL, NULL,
-			   test23_remove_eldest_1);
+			   test20_remove_eldest_1);
 
 	CUT_ASSERT_NOT_NULL(h);
 	CUT_ASSERT_EQUAL(0, hashtbl_insert(h, &keys[0], &keys[0]));
@@ -1148,7 +1092,7 @@ static int test23(void)
 	return 0;
 }
 
-static void * test24_malloc(size_t n)
+static void * test21_malloc(size_t n)
 {
 	UNUSED_PARAMETER(n);
 	return 0;
@@ -1156,7 +1100,7 @@ static void * test24_malloc(size_t n)
 
 /* Test that creation fails. */
 
-static int test24(void)
+static int test21(void)
 {
 	struct hashtbl *h;
 	
@@ -1166,7 +1110,7 @@ static int test24(void)
 			   0,
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
-			   test24_malloc, NULL,
+			   test21_malloc, NULL,
 			   NULL);
 
 	CUT_ASSERT_NULL(h);
@@ -1174,7 +1118,7 @@ static int test24(void)
 	return 0;
 }
 
-static void * test25_malloc(size_t n)
+static void * test22_malloc(size_t n)
 {
 	static int invoke_count = 0;
 	switch (++invoke_count) {
@@ -1185,14 +1129,14 @@ static void * test25_malloc(size_t n)
 	}
 }
 
-static void test25_free(void *p)
+static void test22_free(void *p)
 {
 	free(p);
 }
 
 /* Test that table allocation in hashtbl_create fails. */
 
-static int test25(void)
+static int test22(void)
 {
 	struct hashtbl *h;
 	
@@ -1202,7 +1146,7 @@ static int test25(void)
 			   0,
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
-			   test25_malloc, test25_free,
+			   test22_malloc, test22_free,
 			   NULL);
 
 	CUT_ASSERT_NULL(h);
@@ -1210,7 +1154,7 @@ static int test25(void)
 	return 0;
 }
 
-static void * test26_malloc(size_t n)
+static void * test23_malloc(size_t n)
 {
 	static int invoke_count = 0;
 	switch (++invoke_count) {
@@ -1223,14 +1167,14 @@ static void * test26_malloc(size_t n)
 	}
 }
 
-static void test26_free(void *p)
+static void test23_free(void *p)
 {
 	free(p);
 }
 
 /* Test that insertion allocation fails. */
 
-static int test26(void)
+static int test23(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300, 400, 500, 600 };
@@ -1241,7 +1185,7 @@ static int test26(void)
 			   0,
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
-			   test26_malloc, test26_free,
+			   test23_malloc, test23_free,
 			   NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -1258,7 +1202,7 @@ static int test26(void)
 	return 0;
 }
 
-static void * test27_malloc(size_t n)
+static void * test24_malloc(size_t n)
 {
 	static int invoke_count = 0;
 
@@ -1269,14 +1213,14 @@ static void * test27_malloc(size_t n)
 	}
 }
 
-static void test27_free(void *p)
+static void test24_free(void *p)
 {
 	free(p);
 }
 
 /* Test that resize allocation fails. */
 
-static int test27(void)
+static int test24(void)
 {
 	struct hashtbl *h;
 	static int keys[] = { 100, 200, 300, 400, 500, 600 };
@@ -1287,7 +1231,7 @@ static int test27(void)
 			   0,
 			   hashtbl_direct_hash, hashtbl_direct_equals,
 			   NULL, NULL,
-			   test27_malloc, test27_free,
+			   test24_malloc, test24_free,
 			   NULL);
 
 	CUT_ASSERT_NOT_NULL(h);
@@ -1310,6 +1254,9 @@ CUT_RUN_TEST(test5);
 CUT_RUN_TEST(test6);
 CUT_RUN_TEST(test7);
 CUT_RUN_TEST(test8);
+CUT_RUN_TEST(test9);
+CUT_RUN_TEST(test10);
+CUT_RUN_TEST(test11);
 CUT_RUN_TEST(test12);
 CUT_RUN_TEST(test13);
 CUT_RUN_TEST(test14);
@@ -1323,7 +1270,4 @@ CUT_RUN_TEST(test21);
 CUT_RUN_TEST(test22);
 CUT_RUN_TEST(test23);
 CUT_RUN_TEST(test24);
-CUT_RUN_TEST(test25);
-CUT_RUN_TEST(test26);
-CUT_RUN_TEST(test27);
 CUT_END_TEST_HARNESS
