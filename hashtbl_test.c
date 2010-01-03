@@ -61,9 +61,9 @@ struct test_key {
 	int k;
 };
 
-static hashtbl_hash_t key_hash(const void *k)
+static unsigned int key_hash(const void *k)
 {
-	return ((struct test_key *)k)->k;
+  return (unsigned int) ((struct test_key *)k)->k;
 }
 
 static int key_equals(const void *a, const void *b)
@@ -74,7 +74,7 @@ static int key_equals(const void *a, const void *b)
 static int test6_apply_fn1(const void *k, const void *v, const void *u)
 {
 	UNUSED_PARAMETER(k);
-	*(unsigned int *)u += ((struct test_val *)v)->v;
+	*(unsigned int *)u += (unsigned int)((struct test_val *)v)->v;
 	return 1;
 }
 
@@ -172,7 +172,7 @@ static int test3(void)
 	CUT_ASSERT_EQUAL(300, ((struct test_val *)hashtbl_lookup(h, &k))->v);
 	CUT_ASSERT_TRUE(hashtbl_load_factor(h) > 0);
 	hashtbl_clear(h);
-	CUT_ASSERT_TRUE(hashtbl_load_factor(h) == 0.0f);
+	CUT_ASSERT_TRUE(hashtbl_load_factor(h) == 0.0);
 	CUT_ASSERT_EQUAL(0, hashtbl_count(h));
 	hashtbl_delete(h);
 	return 0;

@@ -43,8 +43,8 @@
 #include <stddef.h>		/* size_t, offsetof, NULL */
 #include <stdlib.h>		/* malloc, free */
 #include <string.h>		/* strcmp */
-#if defined(linux)
-#include <inttypes.h>		/* intptr_t */
+#if !defined(_MSC_VER)
+#include <stdint.h>		/* intptr_t */
 #endif
 #include <assert.h>
 #include "hashtbl.h"
@@ -98,7 +98,7 @@ struct hashtbl_entry {
 	struct hashtbl_entry	*next; /* [single] linked list head */
 	void			*key;
 	void			*val;
-	hashtbl_hash_t		 hash; /* hash of key */
+	unsigned int		 hash; /* hash of key */
 };
 
 static INLINE int dllist_is_empty(const struct dllist *list)
@@ -144,7 +144,7 @@ static INLINE void dllist_remove(struct dllist *node)
 
 static INLINE int resize_threshold(int capacity, float max_load_factor)
 {
-	return (int)((capacity * max_load_factor) + 0.5f);
+	return (int)(((float)capacity * max_load_factor) + 0.5);
 }
 
 static int roundup_to_next_power_of_2(int x)
@@ -155,7 +155,7 @@ static int roundup_to_next_power_of_2(int x)
 }
 
 #ifndef NDEBUG
-static int is_power_of_2(unsigned int x)
+static int is_power_of_2(int x)
 {
 	return ((x & (x - 1)) == 0);
 }
@@ -165,7 +165,7 @@ static int is_power_of_2(unsigned int x)
  * hash helper - Spread the lower order bits.
  * Magic numbers from Java 1.4.
  */
-static INLINE unsigned int hash_spreader(unsigned long k)
+static INLINE unsigned int hash_spreader(unsigned int k)
 {
 	unsigned int h = k;
 	h ^= (h >> 20) ^ (h >> 12);
@@ -177,15 +177,27 @@ static INLINE unsigned int hash_spreader(unsigned long k)
  * This algorithm was first reported by Dan Bernstein many years ago
  * in comp.lang.c.
  */
-static INLINE unsigned int djb2_hash(const unsigned char *str)
+static INLINE unsigned int djb_hash(const unsigned char *str)
 {
-	unsigned int hash = 5381;
+	const unsigned char *p = str;
+	unsigned int hash = 0;
 
 	if (str != NULL) {
-		int c;
-		while ((c = *str++) != '\0') {
-			hash = ((hash << 5) + hash) + c;
+		while (*p++ != '\0') {
+			hash = 33 * hash ^ *p;
 		}
+	}
+	return hash;
+}
+
+static INLINE unsigned int djb2_hash(const void *key, size_t len)
+{
+	const unsigned char *p = key;
+	unsigned int hash = 0;
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		hash = 33 * hash ^ p[i];
 	}
 
 	return hash;
@@ -202,7 +214,8 @@ static INLINE void record_access(struct hashtbl *h, struct hashtbl_entry *entry)
 
 static INLINE int slot_num(unsigned int hashval, int table_size)
 {
-	return hashval & (table_size - 1);
+	/* The table size is represented as an int, so an int will do. */
+	return (int) hashval & (table_size - 1);
 }
 
 static INLINE int remove_eldest(const struct hashtbl *h, unsigned long nentries)
@@ -213,7 +226,7 @@ static INLINE int remove_eldest(const struct hashtbl *h, unsigned long nentries)
 }
 
 static INLINE struct hashtbl_entry *find_entry(struct hashtbl *h,
-					       hashtbl_hash_t hv,
+					       unsigned int hv,
 					       const void *k)
 {
 	struct hashtbl_entry *entry = h->table[slot_num(hv, h->table_size)];
@@ -234,7 +247,7 @@ static INLINE struct hashtbl_entry *find_entry(struct hashtbl *h,
 static struct hashtbl_entry * remove_key(struct hashtbl *h, const void *k)
 {
 	struct hashtbl_entry **slot_ref, *entry;
-	hashtbl_hash_t hash = h->hash_fn(k);
+	unsigned int hash = h->hash_fn(k);
 
 	slot_ref = &h->table[slot_num(hash, h->table_size)];
 	entry = *slot_ref;
@@ -257,7 +270,7 @@ static struct hashtbl_entry * remove_key(struct hashtbl *h, const void *k)
 int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 {
 	struct hashtbl_entry *entry, **slot_ref;
-	hashtbl_hash_t hv;
+	unsigned int hv;
 
 	hv = h->hash_fn(k);
 
@@ -303,7 +316,7 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 
 void * hashtbl_lookup(struct hashtbl *h, const void *k)
 {
-	hashtbl_hash_t hv = h->hash_fn(k);
+	unsigned int hv = h->hash_fn(k);
 	struct hashtbl_entry *entry = find_entry(h, hv, k);
 
 	if (entry != NULL) {
@@ -348,7 +361,7 @@ void hashtbl_clear(struct hashtbl *h)
 		h->nentries--;
 	}
 
-	memset(h->table, 0, h->table_size * sizeof(*h->table));
+	memset(h->table, 0, (size_t)h->table_size * sizeof(*h->table));
 	dllist_init(&h->all_entries);
 	assert(h->nentries == 0);
 }
@@ -396,7 +409,7 @@ struct hashtbl *hashtbl_create(int capacity,
 	if (max_load_factor < 0.0) {
 		max_load_factor = HASHTBL_DEFAULT_LOAD_FACTOR;
 	} else if (max_load_factor > 1.0) {
-		max_load_factor = 1.0;
+		max_load_factor = 1.0f;
 	}
 
 	h->max_load_factor = max_load_factor;
@@ -445,12 +458,12 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	if (capacity < h->table_size || capacity == h->table_size)
 		return 0;
 
-	new_table = h->malloc_fn(capacity * sizeof(*new_table));
+	new_table = h->malloc_fn((size_t)capacity * sizeof(*new_table));
 
 	if (new_table == NULL)
 		return 1;
 
-	memset(new_table, 0, capacity * sizeof(*new_table));
+	memset(new_table, 0, (size_t)capacity * sizeof(*new_table));
 
 	/* Transfer all entries from old table to new table. */
 
@@ -488,9 +501,9 @@ unsigned long hashtbl_apply(const struct hashtbl *h,
 	return nentries;
 }
 
-hashtbl_hash_t hashtbl_string_hash(const void *k)
+unsigned int hashtbl_string_hash(const void *k)
 {
-	return djb2_hash((const unsigned char *)k);
+	return djb_hash((const unsigned char *)k);
 }
 
 int hashtbl_string_equals(const void *a, const void *b)
@@ -498,7 +511,7 @@ int hashtbl_string_equals(const void *a, const void *b)
 	return strcmp(((const char *)a), (const char *)b) == 0;
 }
 
-hashtbl_hash_t hashtbl_int_hash(const void *k)
+unsigned int hashtbl_int_hash(const void *k)
 {
 	return *(unsigned int *)k;
 }
@@ -508,9 +521,19 @@ int hashtbl_int_equals(const void *a, const void *b)
 	return *((const int *)a) == *((const int *)b);
 }
 
-hashtbl_hash_t hashtbl_direct_hash(const void *k)
+unsigned int hashtbl_int64_hash(const void *k)
 {
-	return hash_spreader((uintptr_t)k);
+	return (unsigned int) *(unsigned long long *)k;
+}
+
+int hashtbl_int64_equals(const void *a, const void *b)
+{
+	return *((const long long int *)a) == *((const long long int *)b);
+}
+
+unsigned int hashtbl_direct_hash(const void *k)
+{
+	return hash_spreader((unsigned int)(uintptr_t)k);
 }
 
 int hashtbl_direct_equals(const void *a, const void *b)
@@ -520,7 +543,7 @@ int hashtbl_direct_equals(const void *a, const void *b)
 
 float hashtbl_load_factor(const struct hashtbl *h)
 {
-	return h->nentries / (float)h->table_size;
+	return (float)h->nentries / (float)h->table_size;
 }
 
 void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,

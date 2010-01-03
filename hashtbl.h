@@ -62,11 +62,8 @@ __HASHTBL_BEGIN_DECLS
 /* Opaque types. */
 struct hashtbl;
 
-/* Hash value type. */
-typedef unsigned int hashtbl_hash_t;
-
 /* Hash function. */
-typedef hashtbl_hash_t (*HASHTBL_HASH_FN)(const void *k);
+typedef unsigned int (*HASHTBL_HASH_FN)(const void *k);
 
 /* Key equality function. */
 typedef int (*HASHTBL_EQUALS_FN)(const void *a, const void *b);
@@ -104,7 +101,7 @@ struct hashtbl_iter {
 /*
  * [Default] Hash function.
  */
-hashtbl_hash_t hashtbl_direct_hash(const void *k);
+unsigned int hashtbl_direct_hash(const void *k);
 
 /*
  * [Default] Key equals function.
@@ -114,11 +111,14 @@ hashtbl_hash_t hashtbl_direct_hash(const void *k);
 int hashtbl_direct_equals(const void *a, const void *b);
 
 /* Hash functions for integer keys/values. */
-hashtbl_hash_t hashtbl_int_hash(const void *k);
+unsigned int hashtbl_int_hash(const void *k);
 int hashtbl_int_equals(const void *a, const void *b);
 
+unsigned int hashtbl_int64_hash(const void *k);
+int hashtbl_int64_equals(const void *a, const void *b);
+
 /* Hash functions for nul-terminated string keys/values. */
-hashtbl_hash_t hashtbl_string_hash(const void *k);
+unsigned int hashtbl_string_hash(const void *k);
 int hashtbl_string_equals(const void *a, const void *b);
 
 /*
