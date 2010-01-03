@@ -26,11 +26,11 @@ PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
 COMMON_CFLAGS += -Wall
 COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith
 COMMON_CFLAGS += -Wstrict-aliasing
-#COMMON_CFLAGS += -Wuninitialized -O
+COMMON_CFLAGS += -Wuninitialized -O
 COMMON_CFLAGS += -Wshadow
 CFLAGS        += $(COMMON_CFLAGS)
 CFLAGS        += -g -fno-inline
-CFLAGS        += -O3 -DNDEBUG
+#CFLAGS        += -O3 -DNDEBUG
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test

@@ -983,10 +983,7 @@ static int test19_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 {
 	UNUSED_PARAMETER(h);
 	UNUSED_PARAMETER(count);
-	if (count > 3)
-		return 1;
-	else
-		return 0;
+	return (count > 3) ? 1 : 0;
 }
 
 static int test19(void)
@@ -1022,6 +1019,26 @@ static int test19(void)
 	CUT_ASSERT_EQUAL(keys[3], *(int *) iter.key);
 	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
+	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[4]));
+	hashtbl_iter_init(h, &iter, HASHTBL_FORWARD_ITERATOR);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[5], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[4], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[3], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
+
+	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[3]));
+	hashtbl_iter_init(h, &iter, HASHTBL_FORWARD_ITERATOR);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[5], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[4], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[3], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
+
 	hashtbl_delete(h);
 	return 0;
 }
@@ -1030,10 +1047,7 @@ static int test20_remove_eldest_1(const struct hashtbl *h, unsigned long count)
 {
 	UNUSED_PARAMETER(h);
 	UNUSED_PARAMETER(count);
-	if (count > 3)
-		return 1;
-	else
-		return 0;
+	return (count > 3) ? 1 : 0;
 }
 
 /* Test MRU eviction behaviour. */
@@ -1086,6 +1100,16 @@ static int test20(void)
 	CUT_ASSERT_EQUAL(keys[5], *(int *) iter.key);
 	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
 	CUT_ASSERT_EQUAL(keys[3], *(int *) iter.key);
+	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
+
+	CUT_ASSERT_NOT_NULL(hashtbl_lookup(h, &keys[3]));
+	hashtbl_iter_init(h, &iter, HASHTBL_FORWARD_ITERATOR);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[3], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[4], *(int *) iter.key);
+	CUT_ASSERT_TRUE(hashtbl_iter_next(h, &iter));
+	CUT_ASSERT_EQUAL(keys[5], *(int *) iter.key);
 	CUT_ASSERT_FALSE(hashtbl_iter_next(h, &iter));
 
 	hashtbl_delete(h);

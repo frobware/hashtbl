@@ -34,7 +34,7 @@
  * 2. To insert an entry use hashtbl_insert().
  * 3. To lookup a key use hashtbl_lookup().
  * 4. To remove a key use hashtbl_remove().
- * 5. To apply a function over all entries use hashtbl_apply().
+ * 5. To apply a function to all entries use hashtbl_apply().
  * 5. To clear all keys use hashtbl_clear().
  * 6. To delete a hash table instance use hashtbl_delete().
  * 7. To iterate over all entries use hashtbl_iter_init(), hashtbl_iter_next().
@@ -47,6 +47,8 @@
 #ifndef HASHTBL_H
 #define HASHTBL_H
 
+#include <stddef.h>		/* size_t */
+
 #ifdef	__cplusplus
 # define __HASHTBL_BEGIN_DECLS	extern "C" {
 # define __HASHTBL_END_DECLS	}
@@ -57,8 +59,6 @@
 
 __HASHTBL_BEGIN_DECLS
 
-#include <stddef.h>		/* size_t */
-
 /* Opaque types. */
 struct hashtbl;
 
@@ -68,7 +68,7 @@ typedef unsigned int hashtbl_hash_t;
 /* Hash function. */
 typedef hashtbl_hash_t (*HASHTBL_HASH_FN)(const void *k);
 
-/* Value equality function. */
+/* Key equality function. */
 typedef int (*HASHTBL_EQUALS_FN)(const void *a, const void *b);
 
 /* Apply function. */
@@ -83,7 +83,7 @@ typedef void (*HASHTBL_VAL_FREE_FN)(void *v);
 typedef void * (*HASHTBL_MALLOC_FN)(size_t n);
 typedef void (*HASHTBL_FREE_FN)(void *ptr);
 
-/* Function for removing entries. */
+/* Function for evicting oldest entries. */
 typedef int (*HASHTBL_EVICTOR_FN)(const struct hashtbl *h,
 				  unsigned long count);
 
@@ -126,7 +126,7 @@ int hashtbl_string_equals(const void *a, const void *b);
  *
  * @param initial_capacity - initial size of the table
  * @param max_load_factor  - before resizing (0.0 uses a default value)
- * @param auto_resize	   - if true, table grows (N*2) as new keys are added
+ * @param auto_resize	   - if true, table grows (pow2) as new keys are added
  * @param access_order	   - if true, iteration order is most recently accessed
  * @param hash_func	   - function that computes a hash value from a key
  * @param equals_func	   - function that checks keys for equality
@@ -215,9 +215,9 @@ int hashtbl_capacity(const struct hashtbl *h);
  * The apply function should return 0 to terminate the enumeration
  * early.
  *
- * @h - hash table instance
- * @fn - function to apply to each table entry
- * @client_data - arbitrary user data
+ * @param h - hash table instance
+ * @param fn - function to apply to each table entry
+ * @param client_data - arbitrary user data
  *
  * Returns the number of entries the function was applied to.
  */
