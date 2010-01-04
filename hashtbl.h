@@ -139,7 +139,7 @@ int hashtbl_string_equals(const void *a, const void *b);
  * Returns non-null if the table was created successfully.
  */
 struct hashtbl *hashtbl_create(int initial_capacity,
-			       float max_load_factor,
+			       double max_load_factor,
 			       int auto_resize,
 			       int access_order,
 			       HASHTBL_HASH_FN hash_fun,
@@ -234,7 +234,7 @@ unsigned long hashtbl_apply(const struct hashtbl *h,
  *
  *   hashtbl_count() / hashtbl_capacity()
  */
-float hashtbl_load_factor(const struct hashtbl *h);
+double hashtbl_load_factor(const struct hashtbl *h);
 
 /*
  * Resize the hash table.
