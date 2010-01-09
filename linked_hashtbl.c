@@ -536,7 +536,7 @@ int linked_hashtbl_string_equals(const void *a, const void *b)
 
 unsigned int linked_hashtbl_int_hash(const void *k)
 {
-	return *(int *)k;
+	return *(unsigned int *)k;
 }
 
 int linked_hashtbl_int_equals(const void *a, const void *b)

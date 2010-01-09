@@ -37,7 +37,7 @@ CFLAGS        += -g -fno-inline
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : linked_hashtbl_test
-ifeq ($(shell uname -s),Darwin)
+ifeq ($(shell uname -s),Linux)
 	$(VALGRIND) ./linked_hashtbl_test
 else
 	./linked_hashtbl_test
