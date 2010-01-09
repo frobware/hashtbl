@@ -85,16 +85,16 @@ typedef int (*HASHTBL_EVICTOR_FN)(const struct hashtbl *h,
 				  unsigned long count);
 
 typedef enum {
-	HASHTBL_FORWARD_ITERATOR = 1,
-	HASHTBL_REVERSE_ITERATOR = 2
+	HASHTBL_REVERSE_ITERATOR = -1,
+	HASHTBL_FORWARD_ITERATOR = 1
 } hashtbl_iter_direction;
 
 struct hashtbl_iter {
 	void *key, *val;
 	/* private: clients should not touch these fields. */
-	struct {
+	struct _private {
 		hashtbl_iter_direction direction;
-		const void *p;
+		const void *p, *q;
 	} private;
 };
 
@@ -244,7 +244,7 @@ double hashtbl_load_factor(const struct hashtbl *h);
 int hashtbl_resize(struct hashtbl *h, int new_capacity);
 
 /*
- * Initialize a forward iterator.
+ * Initialize an iterator.
  *
  * @param h - hash table instance
  * @param iter - iterator to initialize
@@ -259,7 +259,8 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
  * Returns 1 while there more entries, otherwise 0.  The key and value
  * can be accessed through the iterator structure.
  */
-int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
+int hashtbl_iter_next(struct hashtbl_iter *iter);
+int hashtbl_iter_prev(struct hashtbl_iter *iter);
 
 __HASHTBL_END_DECLS
 

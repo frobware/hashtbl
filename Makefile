@@ -26,8 +26,10 @@ PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
 COMMON_CFLAGS += -Wall
 COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith -Wshadow
 COMMON_CFLAGS += -Wuninitialized -O 
-#COMMON_CFLAGS += -Wshorten-64-to-32 -Wconversion
-COMMON_CFLAGS += -fstrict-aliasing -Wstrict-aliasing
+ifeq ($(shell uname -s),Darwin)
+COMMON_CFLAGS += -Wshorten-64-to-32
+endif
+COMMON_CFLAGS += -fstrict-aliasing -Wstrict-aliasing -Wconversion
 #COMMON_CFLAGS += -std=c99
 CFLAGS        += $(COMMON_CFLAGS)
 CFLAGS        += -g -fno-inline
