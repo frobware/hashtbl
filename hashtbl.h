@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 <Andrew McDermott>
+/* Copyright (c) 2009, 2010 <Andrew McDermott>
  *
  * Source can be cloned from:
  *
@@ -61,6 +61,7 @@ __HASHTBL_BEGIN_DECLS
 
 /* Opaque types. */
 struct hashtbl;
+struct hashtbl_list_head;
 
 /* Hash function. */
 typedef unsigned int (*HASHTBL_HASH_FN)(const void *k);
@@ -90,12 +91,12 @@ typedef enum {
 } hashtbl_iter_direction;
 
 struct hashtbl_iter {
-	void *key, *val;
-	/* private: clients should not touch these fields. */
-	struct _private {
-		hashtbl_iter_direction direction;
-		const void *p, *q;
-	} private;
+	void *key;
+	void *val;
+	/* The remaining fields are private: don't modify them. */
+	const hashtbl_iter_direction direction;
+	const struct hashtbl_list_head * const p;
+	const struct hashtbl_list_head * const end;
 };
 
 /*
@@ -257,7 +258,7 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
  * Advances the iterator.
  *
  * Returns 1 while there more entries, otherwise 0.  The key and value
- * can be accessed through the iterator structure.
+ * for each entry can be accessed through the iterator structure.
  */
 int hashtbl_iter_next(struct hashtbl_iter *iter);
 

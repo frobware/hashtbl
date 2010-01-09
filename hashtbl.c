@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 <Andrew McDermott>
+/* Copyright (c) 2009, 2010 <Andrew McDermott>
  *
  * Source can be cloned from:
  *
@@ -64,78 +64,59 @@
   #define INLINE inline
 #endif
 
-#define DLLIST_CONTAINER_OF(PTR, TYPE, FIELD) \
+#define LIST_ENTRY(PTR, TYPE, FIELD) \
 	(TYPE *)(((char *)PTR) - offsetof(TYPE, FIELD))
 
-#define DLLIST_ENTRY(PTR, TYPE, FIELD) \
-	DLLIST_CONTAINER_OF(PTR, TYPE, FIELD)
-
-struct dllist {
-	struct dllist *next, *prev;
+struct hashtbl_list_head {
+	struct hashtbl_list_head *next, *prev;
 };
 
 struct hashtbl {
-	struct dllist		 all_entries;
-	double			 max_load_factor;
-	HASHTBL_HASH_FN		 hash_fn;
-	HASHTBL_EQUALS_FN	 equals_fn;
-	unsigned long		 nentries;
-	int			 table_size;
-	int			 resize_threshold;
-	int			 auto_resize;
-	int			 access_order;
-	HASHTBL_KEY_FREE_FN	 key_free_fn;
-	HASHTBL_VAL_FREE_FN	 val_free_fn;
-	HASHTBL_MALLOC_FN	 malloc_fn;
-	HASHTBL_FREE_FN		 free_fn;
-	HASHTBL_EVICTOR_FN	 evictor_fn;
-	struct hashtbl_entry   **table;
+	struct hashtbl_list_head	  all_entries;
+	double				  max_load_factor;
+	HASHTBL_HASH_FN			  hash_fn;
+	HASHTBL_EQUALS_FN		  equals_fn;
+	unsigned long			  nentries;
+	int				  table_size;
+	int				  resize_threshold;
+	int				  auto_resize;
+	int				  access_order;
+	HASHTBL_KEY_FREE_FN		  key_free_fn;
+	HASHTBL_VAL_FREE_FN		  val_free_fn;
+	HASHTBL_MALLOC_FN		  malloc_fn;
+	HASHTBL_FREE_FN			  free_fn;
+	HASHTBL_EVICTOR_FN		  evictor_fn;
+	struct hashtbl_entry		**table;
 };
 
 struct hashtbl_entry {
-	struct dllist		 list; /* runs through all entries */
-	struct hashtbl_entry	*next; /* [single] linked list head */
-	void			*key;
-	void			*val;
-	unsigned int		 hash; /* hash of key */
+	struct hashtbl_list_head	 list;	/* runs through all entries */
+	struct hashtbl_entry		*next;	/* per slot list */
+	void				*key;
+	void				*val;
+	unsigned int			 hash;	/* hash of key */
 };
 
-static INLINE int dllist_is_empty(struct dllist *list)
+static INLINE void list_init(struct hashtbl_list_head *head)
 {
-	return list->next == list;
+	head->next = head;
+	head->prev = head;
 }
 
-static INLINE void dllist_init(struct dllist *list)
-{
-	list->next = list;
-	list->prev = list;
-}
+/* Add node between head and head->next. */
 
-static INLINE void dllist_add_node(struct dllist *node,
-				   struct dllist *prev,
-				   struct dllist *next)
+static INLINE void list_add_before(struct hashtbl_list_head *node,
+				   struct hashtbl_list_head *head)
 {
+	struct hashtbl_list_head *prev = head;
+	struct hashtbl_list_head *next = head->next;
 	node->next = next;
 	node->prev = prev;
 	prev->next = node;
 	next->prev = node;
 }
 
-/* Add node after head. */
-
-static INLINE void dllist_add_before(struct dllist *node, struct dllist *head)
-{
-	dllist_add_node(node, head, head->next);
-}
-
-/* Add node before head. */
-
-static INLINE void dllist_add_after(struct dllist *node, struct dllist *head)
-{
-	dllist_add_node(node, head->prev, head);
-}
-
-static INLINE void dllist_remove(struct dllist *node)
+static INLINE void list_remove(struct hashtbl_list_head *node)
 {
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
@@ -204,14 +185,13 @@ static INLINE void record_access(struct hashtbl *h, struct hashtbl_entry *entry)
 {
 	if (h->access_order) {
 		/* move to head of all_entries */
-		dllist_remove(&entry->list);
-		dllist_add_before(&entry->list, &h->all_entries);
+		list_remove(&entry->list);
+		list_add_before(&entry->list, &h->all_entries);
 	}
 }
 
 static INLINE int slot_n(unsigned int hashval, int table_size)
 {
-	/* The table size is represented as an int, so an int will do. */
 	return (int) hashval & (table_size - 1);
 }
 
@@ -252,7 +232,7 @@ static struct hashtbl_entry * remove_key(struct hashtbl *h, const void *k)
 			/* advance previous node to next entry. */
 			*slot_ref = entry->next;
 			h->nentries--;
-			dllist_remove(&entry->list);
+			list_remove(&entry->list);
 			break;
 		}
 		slot_ref = &entry->next;
@@ -289,14 +269,14 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v)
 
 	/* Move new entry to the head of all entries. */
 	*slot_ref = entry;
-	dllist_add_before(&entry->list, &h->all_entries);
+	list_add_before(&entry->list, &h->all_entries);
 
 	h->nentries++;
 
 	if (h->evictor_fn(h, h->nentries)) {
 		/* Evict oldest entry. */
-		struct dllist *node = h->all_entries.prev;
-		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+		struct hashtbl_list_head *node = h->all_entries.prev;
+		entry = LIST_ENTRY(node, struct hashtbl_entry, list);
 		hashtbl_remove(h, entry->key);
 	}
 
@@ -341,25 +321,25 @@ int hashtbl_remove(struct hashtbl *h, const void *k)
 
 void hashtbl_clear(struct hashtbl *h)
 {
-	struct dllist *node, *tmp, *head = &h->all_entries;
+	struct hashtbl_list_head *node, *tmp, *head = &h->all_entries;
 	struct hashtbl_entry *entry;
 	size_t nbytes = (size_t)h->table_size * sizeof(*h->table);
 
 	for (node = head->next, tmp = node->next;
 	     node != head;
 	     node = tmp, tmp = node->next) {
-		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+		entry = LIST_ENTRY(node, struct hashtbl_entry, list);
 		if (h->key_free_fn != NULL)
 			h->key_free_fn(entry->key);
 		if (h->val_free_fn != NULL)
 			h->val_free_fn(entry->val);
-		dllist_remove(&entry->list);
+		list_remove(&entry->list);
 		h->free_fn(entry);
 		h->nentries--;
 	}
 
 	memset(h->table, 0, nbytes);
-	dllist_init(&h->all_entries);
+	list_init(&h->all_entries);
 }
 
 void hashtbl_delete(struct hashtbl *h)
@@ -422,8 +402,7 @@ struct hashtbl *hashtbl_create(int capacity,
 	h->free_fn = free_fn;
 	h->evictor_fn = evictor_fn;
 	h->table = NULL;
-
-	dllist_init(&h->all_entries);
+	list_init(&h->all_entries);
 
 	if (hashtbl_resize(h, capacity) != 0) {
 		free_fn(h);
@@ -435,7 +414,7 @@ struct hashtbl *hashtbl_create(int capacity,
 
 int hashtbl_resize(struct hashtbl *h, int capacity)
 {
-	struct dllist *node, *head = &h->all_entries;
+	struct hashtbl_list_head *node, *head = &h->all_entries;
 	struct hashtbl_entry *entry, **new_table;
 	size_t nbytes;
 
@@ -455,7 +434,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 	nbytes = (size_t)capacity * sizeof(*new_table);
 
 	if ((new_table = h->malloc_fn(nbytes)) == NULL)
-	    return 1;
+		return 1;
 
 	memset(new_table, 0, nbytes);
 
@@ -463,7 +442,7 @@ int hashtbl_resize(struct hashtbl *h, int capacity)
 
 	for (node = head->next; node != head; node = node->next) {
 		struct hashtbl_entry **slot_ref;
-		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+		entry = LIST_ENTRY(node, struct hashtbl_entry, list);
 		slot_ref = &new_table[slot_n(entry->hash, capacity)];
 		entry->next = *slot_ref;
 		*slot_ref = entry;
@@ -482,18 +461,58 @@ unsigned long hashtbl_apply(const struct hashtbl *h,
 			    HASHTBL_APPLY_FN apply, void *client_data)
 {
 	unsigned long nentries = 0;
-	struct dllist *node;
-	const struct dllist *head = &h->all_entries;
+	struct hashtbl_list_head *node;
+	const struct hashtbl_list_head *head = &h->all_entries;
 
 	for (node = head->next; node != head; node = node->next) {
 		struct hashtbl_entry *entry;
-		entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
+		entry = LIST_ENTRY(node, struct hashtbl_entry, list);
 		nentries++;
 		if (apply(entry->key, entry->val, client_data) != 1)
 			return nentries;
 	}
 
 	return nentries;
+}
+
+void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
+		       hashtbl_iter_direction direction)
+{
+	iter->key = iter->val = NULL;
+
+	/* We have to do some funky casting in order to initialize the
+	 * private fields as they are declared const -- we don't want
+	 * clients changing them but we need to. */
+
+	*(hashtbl_iter_direction *)&iter->direction = direction;
+	*(struct hashtbl_list_head **)&iter->end = &h->all_entries;
+
+	if (direction == HASHTBL_REVERSE_ITERATOR) {
+		*(struct hashtbl_list_head **)&iter->p = h->all_entries.prev;
+	} else {
+		*(struct hashtbl_list_head **)&iter->p = h->all_entries.next;
+	}
+}
+
+int hashtbl_iter_next(struct hashtbl_iter *iter)
+{
+	struct hashtbl_entry *entry;
+	const struct hashtbl_list_head *node = (struct hashtbl_list_head *)iter->p;
+
+	if (node == iter->end)
+		return 0;
+
+	if (iter->direction == HASHTBL_REVERSE_ITERATOR) {
+		*(struct hashtbl_list_head **)&iter->p = node->prev;
+	} else {
+		*(struct hashtbl_list_head **)&iter->p = node->next;
+	}
+
+	entry = LIST_ENTRY(node, struct hashtbl_entry, list);
+	iter->key = entry->key;
+	iter->val = entry->val;
+
+	return 1;
 }
 
 unsigned int hashtbl_string_hash(const void *k)
@@ -539,41 +558,4 @@ int hashtbl_direct_equals(const void *a, const void *b)
 double hashtbl_load_factor(const struct hashtbl *h)
 {
 	return (double)h->nentries / (double)h->table_size;
-}
-
-void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
-		       hashtbl_iter_direction direction)
-{
-	iter->key = iter->val = NULL;
-	iter->private.direction = direction;
-	iter->private.q = &h->all_entries;
-
-	if (direction == HASHTBL_REVERSE_ITERATOR) {
-		iter->private.p = h->all_entries.prev;
-
-	} else {
-		iter->private.p = h->all_entries.next;
-	}
-}
-
-int hashtbl_iter_next(struct hashtbl_iter *iter)
-{
-	struct hashtbl_entry *entry;
-	struct dllist *node = (struct dllist *)iter->private.p;
-	struct dllist *head = (struct dllist *)iter->private.q;
-
-	if (node == head)
-		return 0;
-
-	if (iter->private.direction == HASHTBL_REVERSE_ITERATOR) {
-		iter->private.p = node->prev;
-	} else {
-		iter->private.p = node->next;
-	}
-
-	entry = DLLIST_ENTRY(node, struct hashtbl_entry, list);
-	iter->key = entry->key;
-	iter->val = entry->val;
-
-	return 1;
 }

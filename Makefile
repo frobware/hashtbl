@@ -1,4 +1,4 @@
-# Copyright (c) 2009 <Andrew McDermott>
+# Copyright (c) 2009, 2010 <Andrew McDermott>
 #
 # Source can be cloned from:
 #
@@ -37,7 +37,7 @@ CFLAGS        += -g -fno-inline
 VALGRIND       = valgrind --quiet --leak-check=full
 
 all : hashtbl_test
-ifeq ($(shell uname -s),Linux)
+ifeq ($(shell uname -s),Darwin)
 	$(VALGRIND) ./hashtbl_test
 else
 	./hashtbl_test
