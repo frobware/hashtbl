@@ -260,7 +260,6 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
  * can be accessed through the iterator structure.
  */
 int hashtbl_iter_next(struct hashtbl_iter *iter);
-int hashtbl_iter_prev(struct hashtbl_iter *iter);
 
 __HASHTBL_END_DECLS
 
