@@ -1,3 +1,6 @@
+#ifndef LINKED_HASHTBL_H
+#define LINKED_HASHTBL_H
+
 /* Copyright (c) 2009, 2010 <Andrew McDermott>
  *
  * Source can be cloned from:
@@ -26,101 +29,93 @@
  */
 
 /**
- * A hash table: efficiently maps keys to values.
+ * A hash table: efficiently map keys to values.
  *
  * SYNOPSIS
  *
- * 1. A hash table is created with hashtbl_create().
- * 2. To insert an entry use hashtbl_insert().
- * 3. To lookup a key use hashtbl_lookup().
- * 4. To remove a key use hashtbl_remove().
- * 5. To apply a function to all entries use hashtbl_apply().
- * 5. To clear all keys use hashtbl_clear().
- * 6. To delete a hash table instance use hashtbl_delete().
- * 7. To iterate over all entries use hashtbl_iter_init(), hashtbl_iter_next().
+ * 1. A hash table is created with linked_hashtbl_create().
+ * 2. To insert an entry use linked_hashtbl_insert().
+ * 3. To lookup a key use linked_hashtbl_lookup().
+ * 4. To remove a key use linked_hashtbl_remove().
+ * 5. To apply a function to all entries use linked_hashtbl_apply().
+ * 5. To clear all keys use linked_hashtbl_clear().
+ * 6. To delete a hash table instance use linked_hashtbl_delete().
+ * 7. To iterate over all entries use linked_hashtbl_iter_init(), linked_hashtbl_iter_next().
  *
  * Note: neither the keys or the values are copied so their lifetime
  * must match that of the hash table.  NULL keys are not permitted.
  * Inserting, removing or lookup up NULL keys is therefore undefined.
  */
 
-#ifndef HASHTBL_H
-#define HASHTBL_H
-
 #include <stddef.h>		/* size_t */
 
 #ifdef	__cplusplus
-# define __HASHTBL_BEGIN_DECLS	extern "C" {
-# define __HASHTBL_END_DECLS	}
+# define __LINKED_HASHTBL_BEGIN_DECLS	extern "C" {
+# define __LINKED_HASHTBL_END_DECLS	}
 #else
-# define __HASHTBL_BEGIN_DECLS
-# define __HASHTBL_END_DECLS
+# define __LINKED_HASHTBL_BEGIN_DECLS
+# define __LINKED_HASHTBL_END_DECLS
 #endif
 
-__HASHTBL_BEGIN_DECLS
-
+__LINKED_HASHTBL_BEGIN_DECLS
 /* Opaque types. */
-struct hashtbl;
-struct hashtbl_list_head;
+struct linked_hashtbl;
+struct linked_hashtbl_list_head;
 
 /* Hash function. */
-typedef unsigned int (*HASHTBL_HASH_FN)(const void *k);
+typedef unsigned int (*LINKED_HASHTBL_HASH_FN) (const void *k);
 
 /* Key equality function. */
-typedef int (*HASHTBL_EQUALS_FN)(const void *a, const void *b);
+typedef int (*LINKED_HASHTBL_EQUALS_FN) (const void *a, const void *b);
 
 /* Apply function. */
-typedef int (*HASHTBL_APPLY_FN)(const void *k, const void *v,
-				const void *client_data);
+typedef int (*LINKED_HASHTBL_APPLY_FN) (const void *key,
+					const void *val,
+					const void *client_data);
 
 /* Functions for deleting keys and values. */
-typedef void (*HASHTBL_KEY_FREE_FN)(void *k);
-typedef void (*HASHTBL_VAL_FREE_FN)(void *v);
+typedef void (*LINKED_HASHTBL_KEY_FREE_FN) (void *k);
+typedef void (*LINKED_HASHTBL_VAL_FREE_FN) (void *v);
 
 /* Functions for allocating and freeing memory. */
-typedef void * (*HASHTBL_MALLOC_FN)(size_t n);
-typedef void (*HASHTBL_FREE_FN)(void *ptr);
+typedef void *(*LINKED_HASHTBL_MALLOC_FN) (size_t n);
+typedef void (*LINKED_HASHTBL_FREE_FN) (void *ptr);
 
 /* Function for evicting oldest entries. */
-typedef int (*HASHTBL_EVICTOR_FN)(const struct hashtbl *h,
-				  unsigned long count);
+typedef int (*LINKED_HASHTBL_EVICTOR_FN) (const struct linked_hashtbl * h,
+					  unsigned long count);
 
-typedef enum {
-	HASHTBL_REVERSE_ITERATOR = -1,
-	HASHTBL_FORWARD_ITERATOR = 1
-} hashtbl_iter_direction;
-
-struct hashtbl_iter {
+struct linked_hashtbl_iter {
 	void *key;
 	void *val;
 	/* The remaining fields are private: don't modify them. */
-	const hashtbl_iter_direction direction;
-	const struct hashtbl_list_head * const p;
-	const struct hashtbl_list_head * const end;
+	const int direction;
+	const struct linked_hashtbl_list_head *const p;
+	const struct linked_hashtbl_list_head *const end;
 };
 
 /*
  * [Default] Hash function.
  */
-unsigned int hashtbl_direct_hash(const void *k);
+unsigned int linked_hashtbl_direct_hash(const void *k);
 
 /*
  * [Default] Key equals function.
  *
  * Returns 1 if pointer "a" equals key pointer "b".
  */
-int hashtbl_direct_equals(const void *a, const void *b);
+int linked_hashtbl_direct_equals(const void *a, const void *b);
 
 /* Hash functions for integer keys/values. */
-unsigned int hashtbl_int_hash(const void *k);
-int hashtbl_int_equals(const void *a, const void *b);
+unsigned int linked_hashtbl_int_hash(const void *k);
+int linked_hashtbl_int_equals(const void *a, const void *b);
 
-unsigned int hashtbl_int64_hash(const void *k);
-int hashtbl_int64_equals(const void *a, const void *b);
+unsigned int linked_hashtbl_int64_hash(const void *k);
+int linked_hashtbl_int64_equals(const void *a, const void *b);
 
 /* Hash functions for nul-terminated string keys/values. */
-unsigned int hashtbl_string_hash(const void *k);
-int hashtbl_string_equals(const void *a, const void *b);
+unsigned int linked_hashtbl_string_hash(const void *k);
+int linked_hashtbl_string_equals(const void *a, const void *b);
 
 /*
  * Creates a new hash table.
@@ -139,26 +134,27 @@ int hashtbl_string_equals(const void *a, const void *b);
  *
  * Returns non-null if the table was created successfully.
  */
-struct hashtbl *hashtbl_create(int initial_capacity,
-			       double max_load_factor,
-			       int auto_resize,
-			       int access_order,
-			       HASHTBL_HASH_FN hash_fun,
-			       HASHTBL_EQUALS_FN equals_fun,
-			       HASHTBL_KEY_FREE_FN key_free_func,
-			       HASHTBL_VAL_FREE_FN val_free_func,
-			       HASHTBL_MALLOC_FN malloc_func,
-			       HASHTBL_FREE_FN free_func,
-			       HASHTBL_EVICTOR_FN evictor_func);
+struct linked_hashtbl *linked_hashtbl_create(int initial_capacity,
+					     double max_load_factor,
+					     int auto_resize,
+					     int access_order,
+					     LINKED_HASHTBL_HASH_FN hash_fun,
+					     LINKED_HASHTBL_EQUALS_FN equals_fun,
+					     LINKED_HASHTBL_KEY_FREE_FN key_free_func,
+					     LINKED_HASHTBL_VAL_FREE_FN val_free_func,
+					     LINKED_HASHTBL_MALLOC_FN malloc_func,
+					     LINKED_HASHTBL_FREE_FN free_func,
+					     LINKED_HASHTBL_EVICTOR_FN
+					     evictor_func);
 
 /*
  * Deletes the hash table instance.
  *
- * All the entries are removed via hashtbl_clear().
+ * All the entries are removed via linked_hashtbl_clear().
  *
  * @param h - hash table
  */
-void hashtbl_delete(struct hashtbl *h);
+void linked_hashtbl_delete(struct linked_hashtbl *h);
 
 /*
  * Removes a key and value from the table.
@@ -168,12 +164,12 @@ void hashtbl_delete(struct hashtbl *h);
  *
  * Returns 0 if key was found, otherwise 1.
  */
-int hashtbl_remove(struct hashtbl *h, const void *k);
+int linked_hashtbl_remove(struct linked_hashtbl *h, const void *k);
 
 /*
  * Clears all entries and reclaims memory used by each entry.
  */
-void hashtbl_clear(struct hashtbl *h);
+void linked_hashtbl_clear(struct linked_hashtbl *h);
 
 /*
  * Inserts a new key with associated value.
@@ -184,7 +180,7 @@ void hashtbl_clear(struct hashtbl *h);
  *
  * Returns 0 on success, or 1 if a new entry cannot be created.
  */
-int hashtbl_insert(struct hashtbl *h, void *k, void *v);
+int linked_hashtbl_insert(struct linked_hashtbl *h, void *k, void *v);
 
 /*
  * Lookup an existing key.
@@ -194,21 +190,21 @@ int hashtbl_insert(struct hashtbl *h, void *k, void *v);
  *
  * Returns the value associated with key, or NULL if key is not present.
  */
-void * hashtbl_lookup(struct hashtbl *h, const void *k);
+void *linked_hashtbl_lookup(struct linked_hashtbl *h, const void *k);
 
 /*
  * Returns the number of entries in the table.
  *
  * @param h - hash table instance
  */
-unsigned long hashtbl_count(const struct hashtbl *h);
+unsigned long linked_hashtbl_count(const struct linked_hashtbl *h);
 
 /*
  * Returns the table's capacity.
  *
  * @param h - hash table instance
  */
-int hashtbl_capacity(const struct hashtbl *h);
+int linked_hashtbl_capacity(const struct linked_hashtbl *h);
 
 /*
  * Apply a function to all entries in the table.
@@ -222,9 +218,9 @@ int hashtbl_capacity(const struct hashtbl *h);
  *
  * Returns the number of entries the function was applied to.
  */
-unsigned long hashtbl_apply(const struct hashtbl *h,
-			    HASHTBL_APPLY_FN fn,
-			    void *client_data);
+unsigned long linked_hashtbl_apply(const struct linked_hashtbl *h,
+				   LINKED_HASHTBL_APPLY_FN fn,
+				   void *client_data);
 
 /*
  * Returns the load factor of the hash table.
@@ -233,26 +229,27 @@ unsigned long hashtbl_apply(const struct hashtbl *h,
  *
  * The load factor is a ratio and is calculated as:
  *
- *   hashtbl_count() / hashtbl_capacity()
+ *   linked_hashtbl_count() / linked_hashtbl_capacity()
  */
-double hashtbl_load_factor(const struct hashtbl *h);
+double linked_hashtbl_load_factor(const struct linked_hashtbl *h);
 
 /*
  * Resize the hash table.
  *
  * Returns 0 on success, or 1 if no memory could be allocated.
  */
-int hashtbl_resize(struct hashtbl *h, int new_capacity);
+int linked_hashtbl_resize(struct linked_hashtbl *h, int new_capacity);
 
 /*
  * Initialize an iterator.
  *
  * @param h - hash table instance
  * @param iter - iterator to initialize
- * @param direction - either FORWARD or REVERSE
+ * @param direction - either 1 for FORWARD or -1 for REVERSE
  */
-void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
-		       hashtbl_iter_direction direction);
+void linked_hashtbl_iter_init(struct linked_hashtbl *h,
+			      struct linked_hashtbl_iter *iter,
+			      int direction);
 
 /*
  * Advances the iterator.
@@ -260,8 +257,7 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter,
  * Returns 1 while there more entries, otherwise 0.  The key and value
  * for each entry can be accessed through the iterator structure.
  */
-int hashtbl_iter_next(struct hashtbl_iter *iter);
+int linked_hashtbl_iter_next(struct linked_hashtbl_iter *iter);
 
-__HASHTBL_END_DECLS
-
-#endif	/* HASHTBL_H */
+__LINKED_HASHTBL_END_DECLS
+#endif /* LINKED_HASHTBL_H */

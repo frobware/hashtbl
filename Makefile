@@ -36,39 +36,39 @@ CFLAGS        += -g -fno-inline
 #CFLAGS        += -O3 -DNDEBUG
 VALGRIND       = valgrind --quiet --leak-check=full
 
-all : hashtbl_test
+all : linked_hashtbl_test
 ifeq ($(shell uname -s),Darwin)
-	$(VALGRIND) ./hashtbl_test
+	$(VALGRIND) ./linked_hashtbl_test
 else
-	./hashtbl_test
+	./linked_hashtbl_test
 endif
 
-hashtbl_test: hashtbl_test.c hashtbl.c hashtbl.h
-	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ hashtbl.c hashtbl_test.c
+linked_hashtbl_test: linked_hashtbl_test.c linked_hashtbl.c linked_hashtbl.h
+	$(CC) $(CFLAGS) -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ linked_hashtbl.c linked_hashtbl_test.c
 
-.PHONY: hashtbl_test.gcov
+.PHONY: linked_hashtbl_test.gcov
 
-hashtbl_test.gcov: hashtbl_test.c hashtbl.c
-	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -g -o $@ hashtbl_test.c hashtbl.c
+linked_hashtbl_test.gcov: linked_hashtbl_test.c linked_hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' -g -o $@ linked_hashtbl_test.c linked_hashtbl.c
 	./$@
 	gcov -a $^
 
-.PHONY : hashtbl_test.pg
+.PHONY : linked_hashtbl_test.pg
 
-hashtbl_test.pg: hashtbl_test.c hashtbl.c
+linked_hashtbl_test.pg: linked_hashtbl_test.c linked_hashtbl.c
 	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
-	        -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' \
+	        -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' \
 		-pg -g \
-		 -o $@ hashtbl_test.c hashtbl.c
+		 -o $@ linked_hashtbl_test.c linked_hashtbl.c
 	./$@
 	gprof -s
 
 clean:
-	$(RM) -r *.o *.a *.d hashtbl_test.pg hashtbl_test.gcov hashtbl_test *.gcda *.gcov *.pg *.gcno
+	$(RM) -r *.o *.a *.d linked_hashtbl_test.pg linked_hashtbl_test.gcov linked_hashtbl_test *.gcda *.gcov *.pg *.gcno
 
 *.o : Makefile
 
-hashtbl_test: hashtbl_test.c CUnitTest.h hashtbl.h Makefile
+linked_hashtbl_test: linked_hashtbl_test.c CUnitTest.h linked_hashtbl.h Makefile
 
 .PHONY: TAGS
 
