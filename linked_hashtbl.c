@@ -60,40 +60,40 @@
 #define INLINE inline
 #endif
 
-#define LIST_ENTRY(PTR, TYPE, FIELD) \
+#define LIST_ENTRY(PTR, TYPE, FIELD)			\
 	(TYPE *)(((char *)PTR) - offsetof(TYPE, FIELD))
 
-struct linked_hashtbl_list_head {
-	struct linked_hashtbl_list_head *next, *prev;
+struct l_hashtbl_list_head {
+	struct l_hashtbl_list_head *next, *prev;
 };
 
-struct linked_hashtbl {
-	struct linked_hashtbl_list_head all_entries;
-	double max_load_factor;
-	LINKED_HASHTBL_HASH_FN hash_fn;
-	LINKED_HASHTBL_EQUALS_FN equals_fn;
-	unsigned long nentries;
-	int table_size;
-	int resize_threshold;
-	int auto_resize;
-	int access_order;
-	LINKED_HASHTBL_KEY_FREE_FN key_free_fn;
-	LINKED_HASHTBL_VAL_FREE_FN val_free_fn;
-	LINKED_HASHTBL_MALLOC_FN malloc_fn;
-	LINKED_HASHTBL_FREE_FN free_fn;
-	LINKED_HASHTBL_EVICTOR_FN evictor_fn;
-	struct linked_hashtbl_entry **table;
+struct l_hashtbl {
+	struct l_hashtbl_list_head	  all_entries;
+	double				  max_load_factor;
+	LINKED_HASHTBL_HASH_FN		  hash_fn;
+	LINKED_HASHTBL_EQUALS_FN	  equals_fn;
+	unsigned long			  nentries;
+	int				  table_size;
+	int				  resize_threshold;
+	int				  auto_resize;
+	int				  access_order;
+	LINKED_HASHTBL_KEY_FREE_FN	  key_free_fn;
+	LINKED_HASHTBL_VAL_FREE_FN	  val_free_fn;
+	LINKED_HASHTBL_MALLOC_FN	  malloc_fn;
+	LINKED_HASHTBL_FREE_FN		  free_fn;
+	LINKED_HASHTBL_EVICTOR_FN	  evictor_fn;
+	struct l_hashtbl_entry		**table;
 };
 
-struct linked_hashtbl_entry {
-	struct linked_hashtbl_list_head list;	/* runs through all entries */
-	struct linked_hashtbl_entry *next;	/* per slot list */
-	void *key;
-	void *val;
-	unsigned int hash;	/* hash of key */
+struct l_hashtbl_entry {
+	struct l_hashtbl_list_head	 list;	/* all_entries list */
+	struct l_hashtbl_entry		*next;	/* per slot list */
+	void				*key;
+	void				*val;
+	unsigned int			 hash;	/* hash of key */
 };
 
-static INLINE void list_init(struct linked_hashtbl_list_head *head)
+static INLINE void list_init(struct l_hashtbl_list_head *head)
 {
 	head->next = head;
 	head->prev = head;
@@ -101,18 +101,18 @@ static INLINE void list_init(struct linked_hashtbl_list_head *head)
 
 /* Add node between head and head->next. */
 
-static INLINE void list_add_before(struct linked_hashtbl_list_head *node,
-				   struct linked_hashtbl_list_head *head)
+static INLINE void list_add_before(struct l_hashtbl_list_head *node,
+				   struct l_hashtbl_list_head *head)
 {
-	struct linked_hashtbl_list_head *prev = head;
-	struct linked_hashtbl_list_head *next = head->next;
+	struct l_hashtbl_list_head *prev = head;
+	struct l_hashtbl_list_head *next = head->next;
 	node->next = next;
 	node->prev = prev;
 	prev->next = node;
 	next->prev = node;
 }
 
-static INLINE void list_remove(struct linked_hashtbl_list_head *node)
+static INLINE void list_remove(struct l_hashtbl_list_head *node)
 {
 	node->prev->next = node->next;
 	node->next->prev = node->prev;
@@ -178,8 +178,8 @@ static INLINE unsigned int djb2_hash(const void *key, size_t len)
 	return hash;
 }
 
-static INLINE void record_access(struct linked_hashtbl *h,
-				 struct linked_hashtbl_entry *entry)
+static INLINE void record_access(struct l_hashtbl *h,
+				 struct l_hashtbl_entry *entry)
 {
 	if (h->access_order) {
 		/* move to head of all_entries */
@@ -193,7 +193,7 @@ static INLINE int slot_n(unsigned int hashval, int table_size)
 	return (int)hashval & (table_size - 1);
 }
 
-static INLINE int remove_eldest(const struct linked_hashtbl *h,
+static INLINE int remove_eldest(const struct l_hashtbl *h,
 				unsigned long nentries)
 {
 	UNUSED_PARAMETER(h);
@@ -201,12 +201,12 @@ static INLINE int remove_eldest(const struct linked_hashtbl *h,
 	return 0;
 }
 
-static INLINE struct linked_hashtbl_entry *find_entry(struct linked_hashtbl *h,
-						      unsigned int hv,
-						      const void *k)
+static INLINE struct l_hashtbl_entry *find_entry(struct l_hashtbl *h,
+						 unsigned int hv,
+						 const void *k)
 {
-	struct linked_hashtbl_entry *entry =
-	    h->table[slot_n(hv, h->table_size)];
+	struct l_hashtbl_entry *entry =
+		h->table[slot_n(hv, h->table_size)];
 
 	while (entry != NULL) {
 		if (entry->hash == hv && h->equals_fn(entry->key, k))
@@ -221,13 +221,13 @@ static INLINE struct linked_hashtbl_entry *find_entry(struct linked_hashtbl *h,
  * Remove an entry from the hash table without deleting the underlying
  * instance.  Returns the entry, or NULL if not found.
  */
-static struct linked_hashtbl_entry *remove_key(struct linked_hashtbl *h,
-					       const void *k)
+static struct l_hashtbl_entry *remove_key(struct l_hashtbl *h,
+					  const void *k)
 {
 	unsigned int hv = h->hash_fn(k);
-	struct linked_hashtbl_entry **slot_ref =
-	    &h->table[slot_n(hv, h->table_size)];
-	struct linked_hashtbl_entry *entry = *slot_ref;
+	struct l_hashtbl_entry **slot_ref =
+		&h->table[slot_n(hv, h->table_size)];
+	struct l_hashtbl_entry *entry = *slot_ref;
 
 	while (entry != NULL) {
 		if (entry->hash == hv && h->equals_fn(entry->key, k)) {
@@ -244,9 +244,9 @@ static struct linked_hashtbl_entry *remove_key(struct linked_hashtbl *h,
 	return entry;
 }
 
-int linked_hashtbl_insert(struct linked_hashtbl *h, void *k, void *v)
+int l_hashtbl_insert(struct l_hashtbl *h, void *k, void *v)
 {
-	struct linked_hashtbl_entry *entry, **slot_ref;
+	struct l_hashtbl_entry *entry, **slot_ref;
 	unsigned int hv = h->hash_fn(k);
 
 	if ((entry = find_entry(h, hv, k)) != NULL) {
@@ -277,25 +277,25 @@ int linked_hashtbl_insert(struct linked_hashtbl *h, void *k, void *v)
 
 	if (h->evictor_fn(h, h->nentries)) {
 		/* Evict oldest entry. */
-		struct linked_hashtbl_list_head *node = h->all_entries.prev;
-		entry = LIST_ENTRY(node, struct linked_hashtbl_entry, list);
-		linked_hashtbl_remove(h, entry->key);
+		struct l_hashtbl_list_head *node = h->all_entries.prev;
+		entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
+		l_hashtbl_remove(h, entry->key);
 	}
 
 	if (h->auto_resize) {
 		if (h->nentries >= (unsigned int)h->resize_threshold) {
 			/* auto resize failures are benign. */
-			(void)linked_hashtbl_resize(h, 2 * h->table_size);
+			(void)l_hashtbl_resize(h, 2 * h->table_size);
 		}
 	}
 
 	return 0;
 }
 
-void *linked_hashtbl_lookup(struct linked_hashtbl *h, const void *k)
+void *l_hashtbl_lookup(struct l_hashtbl *h, const void *k)
 {
 	unsigned int hv = h->hash_fn(k);
-	struct linked_hashtbl_entry *entry = find_entry(h, hv, k);
+	struct l_hashtbl_entry *entry = find_entry(h, hv, k);
 
 	if (entry != NULL) {
 		record_access(h, entry);
@@ -305,9 +305,9 @@ void *linked_hashtbl_lookup(struct linked_hashtbl *h, const void *k)
 	return NULL;
 }
 
-int linked_hashtbl_remove(struct linked_hashtbl *h, const void *k)
+int l_hashtbl_remove(struct l_hashtbl *h, const void *k)
 {
-	struct linked_hashtbl_entry *entry = remove_key(h, k);
+	struct l_hashtbl_entry *entry = remove_key(h, k);
 
 	if (entry != NULL) {
 		if (h->key_free_fn != NULL)
@@ -321,15 +321,15 @@ int linked_hashtbl_remove(struct linked_hashtbl *h, const void *k)
 	return 1;
 }
 
-void linked_hashtbl_clear(struct linked_hashtbl *h)
+void l_hashtbl_clear(struct l_hashtbl *h)
 {
-	struct linked_hashtbl_list_head *node, *tmp, *head = &h->all_entries;
-	struct linked_hashtbl_entry *entry;
+	struct l_hashtbl_list_head *node, *tmp, *head = &h->all_entries;
+	struct l_hashtbl_entry *entry;
 	size_t nbytes = (size_t) h->table_size * sizeof(*h->table);
 
 	for (node = head->next, tmp = node->next;
 	     node != head; node = tmp, tmp = node->next) {
-		entry = LIST_ENTRY(node, struct linked_hashtbl_entry, list);
+		entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
 		if (h->key_free_fn != NULL)
 			h->key_free_fn(entry->key);
 		if (h->val_free_fn != NULL)
@@ -343,45 +343,42 @@ void linked_hashtbl_clear(struct linked_hashtbl *h)
 	list_init(&h->all_entries);
 }
 
-void linked_hashtbl_delete(struct linked_hashtbl *h)
+void l_hashtbl_delete(struct l_hashtbl *h)
 {
-	linked_hashtbl_clear(h);
+	l_hashtbl_clear(h);
 	h->free_fn(h->table);
 	h->free_fn(h);
 }
 
-unsigned long linked_hashtbl_count(const struct linked_hashtbl *h)
+unsigned long l_hashtbl_count(const struct l_hashtbl *h)
 {
 	return h->nentries;
 }
 
-int linked_hashtbl_capacity(const struct linked_hashtbl *h)
+int l_hashtbl_capacity(const struct l_hashtbl *h)
 {
 	return h->table_size;
 }
 
-struct linked_hashtbl *linked_hashtbl_create(int capacity,
-					     double max_load_factor,
-					     int auto_resize,
-					     int access_order,
-					     LINKED_HASHTBL_HASH_FN hash_fn,
-					     LINKED_HASHTBL_EQUALS_FN equals_fn,
-					     LINKED_HASHTBL_KEY_FREE_FN
-					     key_free_fn,
-					     LINKED_HASHTBL_VAL_FREE_FN
-					     val_free_fn,
-					     LINKED_HASHTBL_MALLOC_FN malloc_fn,
-					     LINKED_HASHTBL_FREE_FN free_fn,
-					     LINKED_HASHTBL_EVICTOR_FN
-					     evictor_fn)
+struct l_hashtbl *l_hashtbl_create(int capacity,
+				   double max_load_factor,
+				   int auto_resize,
+				   int access_order,
+				   LINKED_HASHTBL_HASH_FN hash_fn,
+				   LINKED_HASHTBL_EQUALS_FN equals_fn,
+				   LINKED_HASHTBL_KEY_FREE_FN key_free_fn,
+				   LINKED_HASHTBL_VAL_FREE_FN val_free_fn,
+				   LINKED_HASHTBL_MALLOC_FN malloc_fn,
+				   LINKED_HASHTBL_FREE_FN free_fn,
+				   LINKED_HASHTBL_EVICTOR_FN evictor_fn)
 {
-	struct linked_hashtbl *h;
+	struct l_hashtbl *h;
 
 	malloc_fn = (malloc_fn != NULL) ? malloc_fn : malloc;
 	free_fn = (free_fn != NULL) ? free_fn : free;
-	hash_fn = (hash_fn != NULL) ? hash_fn : linked_hashtbl_direct_hash;
+	hash_fn = (hash_fn != NULL) ? hash_fn : l_hashtbl_direct_hash;
 	equals_fn =
-	    (equals_fn != NULL) ? equals_fn : linked_hashtbl_direct_equals;
+		(equals_fn != NULL) ? equals_fn : l_hashtbl_direct_equals;
 	evictor_fn = (evictor_fn != NULL) ? evictor_fn : remove_eldest;
 
 	if ((h = malloc_fn(sizeof(*h))) == NULL)
@@ -409,7 +406,7 @@ struct linked_hashtbl *linked_hashtbl_create(int capacity,
 	h->table = NULL;
 	list_init(&h->all_entries);
 
-	if (linked_hashtbl_resize(h, capacity) != 0) {
+	if (l_hashtbl_resize(h, capacity) != 0) {
 		free_fn(h);
 		h = NULL;
 	}
@@ -417,10 +414,10 @@ struct linked_hashtbl *linked_hashtbl_create(int capacity,
 	return h;
 }
 
-int linked_hashtbl_resize(struct linked_hashtbl *h, int capacity)
+int l_hashtbl_resize(struct l_hashtbl *h, int capacity)
 {
-	struct linked_hashtbl_list_head *node, *head = &h->all_entries;
-	struct linked_hashtbl_entry *entry, **new_table;
+	struct l_hashtbl_list_head *node, *head = &h->all_entries;
+	struct l_hashtbl_entry *entry, **new_table;
 	size_t nbytes;
 
 	if (capacity < 1) {
@@ -446,8 +443,8 @@ int linked_hashtbl_resize(struct linked_hashtbl *h, int capacity)
 	/* Transfer all entries from old table to new table. */
 
 	for (node = head->next; node != head; node = node->next) {
-		struct linked_hashtbl_entry **slot_ref;
-		entry = LIST_ENTRY(node, struct linked_hashtbl_entry, list);
+		struct l_hashtbl_entry **slot_ref;
+		entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
 		slot_ref = &new_table[slot_n(entry->hash, capacity)];
 		entry->next = *slot_ref;
 		*slot_ref = entry;
@@ -462,17 +459,17 @@ int linked_hashtbl_resize(struct linked_hashtbl *h, int capacity)
 	return 0;
 }
 
-unsigned long linked_hashtbl_apply(const struct linked_hashtbl *h,
-				   LINKED_HASHTBL_APPLY_FN apply,
-				   void *client_data)
+unsigned long l_hashtbl_apply(const struct l_hashtbl *h,
+			      LINKED_HASHTBL_APPLY_FN apply,
+			      void *client_data)
 {
 	unsigned long nentries = 0;
-	struct linked_hashtbl_list_head *node;
-	const struct linked_hashtbl_list_head *head = &h->all_entries;
+	struct l_hashtbl_list_head *node;
+	const struct l_hashtbl_list_head *head = &h->all_entries;
 
 	for (node = head->next; node != head; node = node->next) {
-		struct linked_hashtbl_entry *entry;
-		entry = LIST_ENTRY(node, struct linked_hashtbl_entry, list);
+		struct l_hashtbl_entry *entry;
+		entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
 		nentries++;
 		if (apply(entry->key, entry->val, client_data) != 1)
 			return nentries;
@@ -481,90 +478,90 @@ unsigned long linked_hashtbl_apply(const struct linked_hashtbl *h,
 	return nentries;
 }
 
-void linked_hashtbl_iter_init(struct linked_hashtbl *h,
-			      struct linked_hashtbl_iter *iter,
-			      int direction)
+void l_hashtbl_iter_init(struct l_hashtbl *h,
+			 struct l_hashtbl_iter *iter,
+			 int direction)
 {
-	iter->key = iter->val = NULL;
+	struct l_hashtbl_list_head **pos;
+	struct l_hashtbl_list_head **end;
 
 	/* We have to do some funky casting in order to initialize the
 	 * private fields as they are declared const -- we don't want
 	 * clients changing them but we need to. */
 
-	*(int *) & iter->direction = direction;
-	*(struct linked_hashtbl_list_head **)&iter->end = &h->all_entries;
+	pos = (struct l_hashtbl_list_head **)&iter->pos;
+	end = (struct l_hashtbl_list_head **)&iter->end;
 
-	if (direction >= 1) {
-		*(struct linked_hashtbl_list_head **)&iter->p = h->all_entries.next;
-	} else {
-		*(struct linked_hashtbl_list_head **)&iter->p = h->all_entries.prev;
-	}
+	*(int *) &iter->direction = direction;
+	*pos = (direction >= 1) ? h->all_entries.next : h->all_entries.prev;
+	*end = &h->all_entries;
+	iter->key = iter->val = NULL;
 }
 
-int linked_hashtbl_iter_next(struct linked_hashtbl_iter *iter)
+int l_hashtbl_iter_next(struct l_hashtbl_iter *iter)
 {
-	struct linked_hashtbl_entry *entry;
-	const struct linked_hashtbl_list_head *node;
+	struct l_hashtbl_entry *entry;
+	struct l_hashtbl_list_head *node, **node_ref;
 
-	node = (struct linked_hashtbl_list_head *)iter->p;
+	node = (struct l_hashtbl_list_head *)iter->pos;
+	node_ref = (struct l_hashtbl_list_head **)&iter->pos;
 
 	if (node == iter->end)
 		return 0;
 
-	if (iter->direction >= 1) {
-		*(struct linked_hashtbl_list_head **)&iter->p = node->next;
-	} else {
-		*(struct linked_hashtbl_list_head **)&iter->p = node->prev;
-	}
+	if (iter->direction >= 1)
+		*node_ref = node->next;
+	else
+		*node_ref = node->prev;
 
-	entry = LIST_ENTRY(node, struct linked_hashtbl_entry, list);
+	entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
 	iter->key = entry->key;
 	iter->val = entry->val;
 
 	return 1;
 }
 
-unsigned int linked_hashtbl_string_hash(const void *k)
+unsigned int l_hashtbl_string_hash(const void *k)
 {
 	return djb_hash((const unsigned char *)k);
 }
 
-int linked_hashtbl_string_equals(const void *a, const void *b)
+int l_hashtbl_string_equals(const void *a, const void *b)
 {
 	return strcmp(((const char *)a), (const char *)b) == 0;
 }
 
-unsigned int linked_hashtbl_int_hash(const void *k)
+unsigned int l_hashtbl_int_hash(const void *k)
 {
 	return *(unsigned int *)k;
 }
 
-int linked_hashtbl_int_equals(const void *a, const void *b)
+int l_hashtbl_int_equals(const void *a, const void *b)
 {
 	return *((const int *)a) == *((const int *)b);
 }
 
-unsigned int linked_hashtbl_int64_hash(const void *k)
+unsigned int l_hashtbl_int64_hash(const void *k)
 {
 	return (unsigned int)*(long long *)k;
 }
 
-int linked_hashtbl_int64_equals(const void *a, const void *b)
+int l_hashtbl_int64_equals(const void *a, const void *b)
 {
 	return *((const long long int *)a) == *((const long long int *)b);
 }
 
-unsigned int linked_hashtbl_direct_hash(const void *k)
+unsigned int l_hashtbl_direct_hash(const void *k)
 {
 	return hash_spreader((unsigned int)(uintptr_t) k);
 }
 
-int linked_hashtbl_direct_equals(const void *a, const void *b)
+int l_hashtbl_direct_equals(const void *a, const void *b)
 {
 	return a == b;
 }
 
-double linked_hashtbl_load_factor(const struct linked_hashtbl *h)
+double l_hashtbl_load_factor(const struct l_hashtbl *h)
 {
 	return (double)h->nentries / (double)h->table_size;
 }
