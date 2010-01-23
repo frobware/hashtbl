@@ -86,51 +86,22 @@ static int roundup_to_next_power_of_2(int x)
 	return n;
 }
 
-static int is_power_of_2(int x)
+static INLINE unsigned int direct_hash(const void *k)
 {
-	return ((x & (x - 1)) == 0);
-}
-
-/*
- * hash helper - Spread the lower order bits.
- * Magic numbers from Java 1.4.
- */
-static INLINE unsigned int hash_spreader(unsigned int k)
-{
-	unsigned int h = k;
+	/* Magic numbers from Java 1.4. */
+	unsigned int h = (unsigned int)(uintptr_t) k;
 	h ^= (h >> 20) ^ (h >> 12);
 	return h ^ (h >> 7) ^ (h >> 4);
 }
 
-/* djb2
- *
- * This algorithm was first reported by Dan Bernstein many years ago
- * in comp.lang.c.
- */
-static INLINE unsigned int djb_hash(const unsigned char *str)
+static INLINE int direct_equals(const void *a, const void *b)
 {
-	const unsigned char *p = str;
-	unsigned int hash = 0;
-
-	if (str != NULL) {
-		while (*p++ != '\0') {
-			hash = 33 * hash ^ *p;
-		}
-	}
-	return hash;
+	return a == b;
 }
 
-static INLINE unsigned int djb2_hash(const void *key, size_t len)
+static int is_power_of_2(int x)
 {
-	const unsigned char *p = key;
-	unsigned int hash = 0;
-	size_t i;
-
-	for (i = 0; i < len; i++) {
-		hash = 33 * hash ^ p[i];
-	}
-
-	return hash;
+	return ((x & (x - 1)) == 0);
 }
 
 static INLINE struct hashtbl_entry ** tbl_entry_ref(struct hashtbl *h,
@@ -319,8 +290,8 @@ struct hashtbl *hashtbl_create(int capacity,
 
 	malloc_fn = (malloc_fn != NULL) ? malloc_fn : malloc;
 	free_fn = (free_fn != NULL) ? free_fn : free;
-	hash_fn = (hash_fn != NULL) ? hash_fn : hashtbl_direct_hash;
-	equals_fn = (equals_fn != NULL) ? equals_fn : hashtbl_direct_equals;
+	hash_fn = (hash_fn != NULL) ? hash_fn : direct_hash;
+	equals_fn = (equals_fn != NULL) ? equals_fn : direct_equals;
 
 	if ((h = malloc_fn(sizeof(*h))) == NULL)
 		return NULL;
@@ -432,6 +403,7 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter)
 	 * private fields as they are declared const -- we don't want
 	 * clients changing them but we need to. */
 
+	*(int *)&iter->pos = h->table_size;
 	*(int *)&iter->pos = 0;
 	*(struct hashtbl_entry **)&iter->entry = NULL;
 }
@@ -466,46 +438,6 @@ int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter)
 	}
 
 	return 0;
-}
-
-unsigned int hashtbl_string_hash(const void *k)
-{
-	return djb_hash((const unsigned char *)k);
-}
-
-int hashtbl_string_equals(const void *a, const void *b)
-{
-	return strcmp(((const char *)a), (const char *)b) == 0;
-}
-
-unsigned int hashtbl_int_hash(const void *k)
-{
-	return *(unsigned int *)k;
-}
-
-int hashtbl_int_equals(const void *a, const void *b)
-{
-	return *((const int *)a) == *((const int *)b);
-}
-
-unsigned int hashtbl_int64_hash(const void *k)
-{
-	return (unsigned int)*(long long *)k;
-}
-
-int hashtbl_int64_equals(const void *a, const void *b)
-{
-	return *((const long long int *)a) == *((const long long int *)b);
-}
-
-unsigned int hashtbl_direct_hash(const void *k)
-{
-	return hash_spreader((unsigned int)(uintptr_t) k);
-}
-
-int hashtbl_direct_equals(const void *a, const void *b)
-{
-	return a == b;
 }
 
 double hashtbl_load_factor(const struct hashtbl *h)

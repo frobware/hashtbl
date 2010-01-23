@@ -153,6 +153,7 @@ extern const char * CUT_curr_suite;
 void (*CUT_fixture_setup)(void);
 void (*CUT_fixture_teardown)(void);
 
+#if 0
 #if __STDC_VERSION__ < 199901L
 # if __GNUC__ >= 2
 #  define __func__ __FUNCTION__
@@ -160,6 +161,9 @@ void (*CUT_fixture_teardown)(void);
 #  define __func__ "<unknown>"
 # endif
 #endif
+#endif
+
+#define __func__ __FUNCTION__
 
 /*! 
 @group CUnitTest Core Test Macros

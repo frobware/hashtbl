@@ -25,15 +25,15 @@
 PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
 COMMON_CFLAGS += -Wall
 COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith -Wshadow
-COMMON_CFLAGS += -Wuninitialized -O1
+#COMMON_CFLAGS += -Wuninitialized -O1
 ifeq ($(shell uname -s),Darwin)
 COMMON_CFLAGS += -Wshorten-64-to-32
 endif
-COMMON_CFLAGS += -fstrict-aliasing -Wstrict-aliasing -Wconversion -Wcast-align
+COMMON_CFLAGS += -Wstrict-aliasing -fstrict-aliasing -Wconversion -Wcast-align
 CFLAGS        += $(COMMON_CFLAGS)
 CFLAGS        += -g -fno-inline
 #CFLAGS        += -O3 -DNDEBUG
-VALGRIND       = 
+VALGRIND       =
 
 ifeq ($(shell uname -s),Linux)
 VALGRIND       = valgrind --quiet --leak-check=full
@@ -46,10 +46,10 @@ all : hashtbl_test linked_hashtbl_test
 	$(VALGRIND) ./hashtbl_test
 	$(VALGRIND) ./linked_hashtbl_test
 
-linked_hashtbl_test: linked_hashtbl_test.c linked_hashtbl.c linked_hashtbl.h
+linked_hashtbl_test: linked_hashtbl_test.c linked_hashtbl.c linked_hashtbl.h hashtbl_funcs.h
 	$(CC) $(CFLAGS) -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ linked_hashtbl.c linked_hashtbl_test.c
 
-hashtbl_test: hashtbl_test.c hashtbl.c hashtbl.h
+hashtbl_test: hashtbl_test.c hashtbl.c hashtbl.h hashtbl_funcs.h
 	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: linked_hashtbl_test.gcov
@@ -68,7 +68,7 @@ hashtbl_test.gcov: hashtbl_test.c hashtbl.c
 
 linked_hashtbl_test.pg: linked_hashtbl_test.c linked_hashtbl.c
 	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
-	        -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' \
+		-DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' \
 		-pg -g \
 		 -o $@ linked_hashtbl_test.c linked_hashtbl.c
 	./$@
@@ -76,7 +76,7 @@ linked_hashtbl_test.pg: linked_hashtbl_test.c linked_hashtbl.c
 
 hashtbl_test.pg: hashtbl_test.c hashtbl.c
 	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
-	        -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' \
+		-DHASHTBL_MAX_TABLE_SIZE='(1<<8)' \
 		-pg -g \
 		 -o $@ hashtbl_test.c hashtbl.c
 	./$@

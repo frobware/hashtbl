@@ -31,6 +31,7 @@
 #include <string.h>
 #include <assert.h>
 #include "CUnitTest.h"
+#include "hashtbl_funcs.h"
 #include "linked_hashtbl.h"
 
 #ifndef LINKED_HASHTBL_MAX_LOAD_FACTOR
@@ -486,7 +487,7 @@ static int test10(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -519,7 +520,7 @@ static int test11(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_int_hash, l_hashtbl_int_equals,
+			     hashtbl_int_hash, hashtbl_int_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -554,7 +555,7 @@ static int test12(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_string_hash, l_hashtbl_string_equals,
+			     hashtbl_string_hash, hashtbl_string_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 
@@ -583,7 +584,7 @@ static int test13(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -594,7 +595,7 @@ static int test13(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_EQUAL(1, l_hashtbl_capacity(h));
@@ -605,7 +606,7 @@ static int test13(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_EQUAL(LINKED_HASHTBL_MAX_TABLE_SIZE, l_hashtbl_capacity(h));
@@ -616,7 +617,7 @@ static int test13(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -627,7 +628,7 @@ static int test13(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -649,7 +650,7 @@ static int test13(void)
 			     -1.0f,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -682,7 +683,7 @@ static int test14(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_string_hash, l_hashtbl_string_equals,
+			     hashtbl_string_hash, hashtbl_string_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 
@@ -739,7 +740,7 @@ static int test15(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);
@@ -776,7 +777,7 @@ static int test16(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 
@@ -865,7 +866,7 @@ static int test17(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     1,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 
@@ -963,7 +964,7 @@ static int test18(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL,
 			     test18_remove_eldest_1);
@@ -999,7 +1000,7 @@ static int test19(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL,
 			     test19_remove_eldest_1);
@@ -1065,7 +1066,7 @@ static int test20(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     1,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     NULL, NULL,
 			     test20_remove_eldest_1);
@@ -1135,7 +1136,7 @@ static int test21(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     test21_malloc, NULL,
 			     NULL);
@@ -1171,7 +1172,7 @@ static int test22(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     test22_malloc, test22_free,
 			     NULL);
@@ -1210,7 +1211,7 @@ static int test23(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     test23_malloc, test23_free,
 			     NULL);
@@ -1256,7 +1257,7 @@ static int test24(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_direct_hash, l_hashtbl_direct_equals,
+			     hashtbl_direct_hash, hashtbl_direct_equals,
 			     NULL, NULL,
 			     test24_malloc, test24_free,
 			     NULL);
@@ -1284,7 +1285,7 @@ static int test25(void)
 			     LINKED_HASHTBL_MAX_LOAD_FACTOR,
 			     1,
 			     0,
-			     l_hashtbl_int64_hash, l_hashtbl_int64_equals,
+			     hashtbl_int64_hash, hashtbl_int64_equals,
 			     NULL, NULL,
 			     NULL, NULL, NULL);
 	CUT_ASSERT_NOT_NULL(h);

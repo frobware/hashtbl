@@ -50,14 +50,8 @@
 #include <stddef.h>		/* size_t */
 
 #ifdef	__cplusplus
-# define __HASHTBL_BEGIN_DECLS	extern "C" {
-# define __HASHTBL_END_DECLS	}
-#else
-# define __HASHTBL_BEGIN_DECLS
-# define __HASHTBL_END_DECLS
+extern "C" {
 #endif
-
-__HASHTBL_BEGIN_DECLS
 
 /* Opaque types. */
 struct hashtbl;
@@ -91,31 +85,8 @@ struct hashtbl_iter {
 	void *val;
 	/* The remaining fields are private: don't modify them. */
 	const int pos;
-	const struct hashtbl_entry *entry;
+	const struct hashtbl_entry * const entry;
 };
-
-/*
- * [Default] Hash function.
- */
-unsigned int hashtbl_direct_hash(const void *k);
-
-/*
- * [Default] Key equals function.
- *
- * Returns 1 if pointer "a" equals key pointer "b".
- */
-int hashtbl_direct_equals(const void *a, const void *b);
-
-/* Hash functions for integer keys/values. */
-unsigned int hashtbl_int_hash(const void *k);
-int hashtbl_int_equals(const void *a, const void *b);
-
-unsigned int hashtbl_int64_hash(const void *k);
-int hashtbl_int64_equals(const void *a, const void *b);
-
-/* Hash functions for nul-terminated string keys/values. */
-unsigned int hashtbl_string_hash(const void *k);
-int hashtbl_string_equals(const void *a, const void *b);
 
 /*
  * Creates a new hash table.
@@ -249,26 +220,8 @@ void hashtbl_iter_init(struct hashtbl *h, struct hashtbl_iter *iter);
  */
 int hashtbl_iter_next(struct hashtbl *h, struct hashtbl_iter *iter);
 
-/* Convenience macros for plain old types. */
+#ifdef	__cplusplus
+}
+#endif
 
-#define HASHTBL_TYPE_CREATE(name, type)					\
-    struct hashtbl *name = hashtbl_create(64, 0.75f, 1,			\
-					  hashtbl_##type##_hash,	\
-					  hashtbl_##type##_equals,	\
-					  free, free,			\
-					  malloc, free)
-
-#define HASHTBL_STRING(name)	HASHTBL_TYPE_CREATE(name, string)
-#define HASHTBL_INT(name)	HASHTBL_TYPE_CREATE(name, int)
-#define HASHTBL_INT64(name)	HASHTBL_TYPE_CREATE(name, int64)
-
-#define HASHTBL_DIRECT(name)						\
-    struct hashtbl *name = hashtbl_create(64, 0.75f, 1,			\
-					  hashtbl_direct_hash,		\
-					  hashtbl_direct_equals,	\
-					  NULL, free,			\
-					  malloc, free)
-
-__HASHTBL_END_DECLS
-
-#endif /* HASHTBL_H */
+#endif	/* HASHTBL_H */

@@ -50,14 +50,9 @@
 #include <stddef.h>		/* size_t */
 
 #ifdef	__cplusplus
-# define __LINKED_HASHTBL_BEGIN_DECLS	extern "C" {
-# define __LINKED_HASHTBL_END_DECLS	}
-#else
-# define __LINKED_HASHTBL_BEGIN_DECLS
-# define __LINKED_HASHTBL_END_DECLS
+extern "C" {
 #endif
 
-__LINKED_HASHTBL_BEGIN_DECLS
 /* Opaque types. */
 struct l_hashtbl;
 struct l_hashtbl_list_head;
@@ -95,29 +90,6 @@ struct l_hashtbl_iter {
 };
 
 /*
- * [Default] Hash function.
- */
-unsigned int l_hashtbl_direct_hash(const void *k);
-
-/*
- * [Default] Key equals function.
- *
- * Returns 1 if pointer "a" equals key pointer "b".
- */
-int l_hashtbl_direct_equals(const void *a, const void *b);
-
-/* Hash functions for integer keys/values. */
-unsigned int l_hashtbl_int_hash(const void *k);
-int l_hashtbl_int_equals(const void *a, const void *b);
-
-unsigned int l_hashtbl_int64_hash(const void *k);
-int l_hashtbl_int64_equals(const void *a, const void *b);
-
-/* Hash functions for nul-terminated string keys/values. */
-unsigned int l_hashtbl_string_hash(const void *k);
-int l_hashtbl_string_equals(const void *a, const void *b);
-
-/*
  * Creates a new hash table.
  *
  * @param initial_capacity - initial size of the table
@@ -144,8 +116,7 @@ struct l_hashtbl *l_hashtbl_create(int initial_capacity,
 				   LINKED_HASHTBL_VAL_FREE_FN val_free_func,
 				   LINKED_HASHTBL_MALLOC_FN malloc_func,
 				   LINKED_HASHTBL_FREE_FN free_func,
-				   LINKED_HASHTBL_EVICTOR_FN
-				   evictor_func);
+				   LINKED_HASHTBL_EVICTOR_FN evictor_func);
 
 /*
  * Deletes the hash table instance.
@@ -259,6 +230,8 @@ void l_hashtbl_iter_init(struct l_hashtbl *h,
  */
 int l_hashtbl_iter_next(struct l_hashtbl_iter *iter);
 
-__LINKED_HASHTBL_END_DECLS
+#ifdef	__cplusplus
+}
+#endif
 
-#endif /* LINKED_HASHTBL_H */
+#endif	/* LINKED_HASHTBL_H */

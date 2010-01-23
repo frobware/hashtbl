@@ -32,6 +32,7 @@
 #include <assert.h>
 #include "CUnitTest.h"
 #include "hashtbl.h"
+#include "hashtbl_funcs.h"
 
 #ifndef HASHTBL_MAX_LOAD_FACTOR
 #define HASHTBL_MAX_LOAD_FACTOR	0.75f
@@ -40,6 +41,26 @@
 #ifndef HASHTBL_MAX_TABLE_SIZE
 #define HASHTBL_MAX_TABLE_SIZE	(1 << 14)
 #endif
+
+/* Convenience macros for plain old types. */
+
+#define HASHTBL_TYPE_CREATE(name, type)					\
+    struct hashtbl *name = hashtbl_create(64, 0.75f, 1,			\
+					  hashtbl_##type##_hash,	\
+					  hashtbl_##type##_equals,	\
+					  free, free,			\
+					  malloc, free)
+
+#define HASHTBL_STRING(name)	HASHTBL_TYPE_CREATE(name, string)
+#define HASHTBL_INT(name)	HASHTBL_TYPE_CREATE(name, int)
+#define HASHTBL_INT64(name)	HASHTBL_TYPE_CREATE(name, int64)
+
+#define HASHTBL_DIRECT(name)						\
+    struct hashtbl *name = hashtbl_create(64, 0.75f, 1,			\
+					  hashtbl_direct_hash,		\
+					  hashtbl_direct_equals,	\
+					  NULL, free,			\
+					  malloc, free)
 
 #define UNUSED_PARAMETER(X)	(void)(X)
 #define NELEMENTS(X)		(sizeof((X)) / sizeof((X)[0]))
