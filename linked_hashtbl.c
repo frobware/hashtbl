@@ -188,9 +188,16 @@ static INLINE void record_access(struct l_hashtbl *h,
 	}
 }
 
-static INLINE int slot_n(unsigned int hashval, int table_size)
+static INLINE struct l_hashtbl_entry ** tbl_entry_ref(struct l_hashtbl *h,
+						      unsigned int hashval)
 {
-	return (int)hashval & (table_size - 1);
+	return &h->table[hashval & (h->table_size -1)];
+}
+
+static INLINE struct l_hashtbl_entry * tbl_entry(struct l_hashtbl *h,
+						 unsigned int hashval)
+{
+	return h->table[hashval & (h->table_size -1)];
 }
 
 static INLINE int remove_eldest(const struct l_hashtbl *h,
@@ -205,8 +212,7 @@ static INLINE struct l_hashtbl_entry *find_entry(struct l_hashtbl *h,
 						 unsigned int hv,
 						 const void *k)
 {
-	struct l_hashtbl_entry *entry =
-		h->table[slot_n(hv, h->table_size)];
+	struct l_hashtbl_entry *entry = tbl_entry(h, hv);
 
 	while (entry != NULL) {
 		if (entry->hash == hv && h->equals_fn(entry->key, k))
@@ -225,8 +231,7 @@ static struct l_hashtbl_entry *remove_key(struct l_hashtbl *h,
 					  const void *k)
 {
 	unsigned int hv = h->hash_fn(k);
-	struct l_hashtbl_entry **slot_ref =
-		&h->table[slot_n(hv, h->table_size)];
+	struct l_hashtbl_entry **slot_ref = tbl_entry_ref(h, hv);
 	struct l_hashtbl_entry *entry = *slot_ref;
 
 	while (entry != NULL) {
@@ -266,7 +271,7 @@ int l_hashtbl_insert(struct l_hashtbl *h, void *k, void *v)
 	entry->hash = hv;
 
 	/* Link new entry at the head of the chain for this slot. */
-	slot_ref = &h->table[slot_n(hv, h->table_size)];
+	slot_ref = tbl_entry_ref(h, hv);
 	entry->next = *slot_ref;
 
 	/* Move new entry to the head of all entries. */
@@ -377,8 +382,7 @@ struct l_hashtbl *l_hashtbl_create(int capacity,
 	malloc_fn = (malloc_fn != NULL) ? malloc_fn : malloc;
 	free_fn = (free_fn != NULL) ? free_fn : free;
 	hash_fn = (hash_fn != NULL) ? hash_fn : l_hashtbl_direct_hash;
-	equals_fn =
-		(equals_fn != NULL) ? equals_fn : l_hashtbl_direct_equals;
+	equals_fn = (equals_fn != NULL) ? equals_fn : l_hashtbl_direct_equals;
 	evictor_fn = (evictor_fn != NULL) ? evictor_fn : remove_eldest;
 
 	if ((h = malloc_fn(sizeof(*h))) == NULL)
@@ -419,6 +423,7 @@ int l_hashtbl_resize(struct l_hashtbl *h, int capacity)
 	struct l_hashtbl_list_head *node, *head = &h->all_entries;
 	struct l_hashtbl_entry *entry, **new_table;
 	size_t nbytes;
+	struct l_hashtbl tmp_h;
 
 	if (capacity < 1) {
 		capacity = 1;
@@ -433,27 +438,28 @@ int l_hashtbl_resize(struct l_hashtbl *h, int capacity)
 	if (capacity < h->table_size || capacity == h->table_size)
 		return 0;
 
-	nbytes = (size_t) capacity *sizeof(*new_table);
+	nbytes = (size_t) capacity * sizeof(*new_table);
 
-	if ((new_table = h->malloc_fn(nbytes)) == NULL)
+	if ((tmp_h.table = h->malloc_fn(nbytes)) == NULL)
 		return 1;
 
-	memset(new_table, 0, nbytes);
+	memset(tmp_h.table, 0, nbytes);
+	tmp_h.table_size = capacity;
 
 	/* Transfer all entries from old table to new table. */
 
 	for (node = head->next; node != head; node = node->next) {
 		struct l_hashtbl_entry **slot_ref;
 		entry = LIST_ENTRY(node, struct l_hashtbl_entry, list);
-		slot_ref = &new_table[slot_n(entry->hash, capacity)];
+		slot_ref = tbl_entry_ref(&tmp_h, entry->hash);
 		entry->next = *slot_ref;
 		*slot_ref = entry;
 	}
 
 	if (h->table != NULL)
 		h->free_fn(h->table);
+	h->table = tmp_h.table;
 	h->table_size = capacity;
-	h->table = new_table;
 	h->resize_threshold = resize_threshold(capacity, h->max_load_factor);
 
 	return 0;

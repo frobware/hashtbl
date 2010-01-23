@@ -45,7 +45,7 @@
 #define NELEMENTS(X)		(sizeof((X)) / sizeof((X)[0]))
 #define STREQ(A,B)		strcmp((A), (B)) == 0
 
-static int ht_size = 0;
+static int ht_size = 1;
 
 struct test_val {
 	int x[13];
@@ -986,6 +986,8 @@ static int test19_remove_eldest_1(const struct l_hashtbl *h, unsigned long count
 	UNUSED_PARAMETER(count);
 	return (count > 3) ? 1 : 0;
 }
+
+/* Test iteration. */
 
 static int test19(void)
 {

@@ -25,31 +25,42 @@
 PROFILE_FLAGS  = -fprofile-arcs -ftest-coverage
 COMMON_CFLAGS += -Wall
 COMMON_CFLAGS += -Wformat -Wmissing-prototypes -Wpointer-arith -Wshadow
-COMMON_CFLAGS += -Wuninitialized -O 
+COMMON_CFLAGS += -Wuninitialized -O1
 ifeq ($(shell uname -s),Darwin)
 COMMON_CFLAGS += -Wshorten-64-to-32
 endif
-COMMON_CFLAGS += -fstrict-aliasing -Wstrict-aliasing -Wconversion
-#COMMON_CFLAGS += -std=c99
+COMMON_CFLAGS += -fstrict-aliasing -Wstrict-aliasing -Wconversion -Wcast-align
 CFLAGS        += $(COMMON_CFLAGS)
 CFLAGS        += -g -fno-inline
 #CFLAGS        += -O3 -DNDEBUG
-VALGRIND       = valgrind --quiet --leak-check=full
+VALGRIND       = 
 
-all : linked_hashtbl_test
 ifeq ($(shell uname -s),Linux)
-	$(VALGRIND) ./linked_hashtbl_test
-else
-	./linked_hashtbl_test
+VALGRIND       = valgrind --quiet --leak-check=full
 endif
+ifeq ($(shell uname -sr),Darwin 9.8.0)
+VALGRIND       = valgrind --quiet --leak-check=full
+endif
+
+all : hashtbl_test linked_hashtbl_test
+	$(VALGRIND) ./hashtbl_test
+	$(VALGRIND) ./linked_hashtbl_test
 
 linked_hashtbl_test: linked_hashtbl_test.c linked_hashtbl.c linked_hashtbl.h
 	$(CC) $(CFLAGS) -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ linked_hashtbl.c linked_hashtbl_test.c
+
+hashtbl_test: hashtbl_test.c hashtbl.c hashtbl.h
+	$(CC) $(CFLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -o $@ hashtbl.c hashtbl_test.c
 
 .PHONY: linked_hashtbl_test.gcov
 
 linked_hashtbl_test.gcov: linked_hashtbl_test.c linked_hashtbl.c
 	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -DLINKED_HASHTBL_MAX_TABLE_SIZE='(1<<8)' -g -o $@ linked_hashtbl_test.c linked_hashtbl.c
+	./$@
+	gcov -a $^
+
+hashtbl_test.gcov: hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' -g -o $@ hashtbl_test.c hashtbl.c
 	./$@
 	gcov -a $^
 
@@ -63,10 +74,21 @@ linked_hashtbl_test.pg: linked_hashtbl_test.c linked_hashtbl.c
 	./$@
 	gprof -s
 
+hashtbl_test.pg: hashtbl_test.c hashtbl.c
+	$(CC) $(CFLAGS) $(PROFILE_FLAGS) \
+	        -DHASHTBL_MAX_TABLE_SIZE='(1<<8)' \
+		-pg -g \
+		 -o $@ hashtbl_test.c hashtbl.c
+	./$@
+	gprof -s
+
 clean:
-	$(RM) -r *.o *.a *.d linked_hashtbl_test.pg linked_hashtbl_test.gcov linked_hashtbl_test *.gcda *.gcov *.pg *.gcno
+	$(RM) linked_hashtbl_test.pg linked_hashtbl_test.gcov linked_hashtbl_test
+	$(RM) hashtbl_test.pg hashtbl_test.gcov hashtbl_test
+	$(RM) -r *.o *.a *.d *.gcda *.gcov *.pg *.gcno
 
 *.o : Makefile
+*.h : Makefile
 
 linked_hashtbl_test: linked_hashtbl_test.c CUnitTest.h linked_hashtbl.h Makefile
 
