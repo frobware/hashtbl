@@ -162,13 +162,13 @@ static INLINE void record_access(struct l_hashtbl *h,
 static INLINE struct l_hashtbl_entry ** tbl_entry_ref(struct l_hashtbl *h,
 						      unsigned int hashval)
 {
-	return &h->table[hashval & (h->table_size -1)];
+	return &h->table[(int)hashval & (h->table_size -1)];
 }
 
 static INLINE struct l_hashtbl_entry * tbl_entry(struct l_hashtbl *h,
 						 unsigned int hashval)
 {
-	return h->table[hashval & (h->table_size -1)];
+	return h->table[(int)hashval & (h->table_size -1)];
 }
 
 static INLINE int remove_eldest(const struct l_hashtbl *h,
