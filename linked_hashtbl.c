@@ -61,7 +61,7 @@
 #endif
 
 #define LIST_ENTRY(PTR, TYPE, FIELD)			\
-	(TYPE *)(((char *)PTR) - offsetof(TYPE, FIELD))
+	(TYPE *)(((TYPE *)PTR) - offsetof(TYPE, FIELD))
 
 struct l_hashtbl_list_head {
 	struct l_hashtbl_list_head *next, *prev;
